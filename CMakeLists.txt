@@ -1,22 +1,22 @@
 cmake_minimum_required(VERSION 2.8.11)
 
-project (HornSpec)
-set (HornSpec_VERSION_MAJOR 1)
-set (HornSpec_VERSION_MINOR 0)
+project (FreqHorn)
+set (FreqHorn_VERSION_MAJOR 0)
+set (FreqHorn_VERSION_MINOR 5)
 
 if (NOT PACKAGE_VERSION)
   set(PACKAGE_VERSION
-    "${HornSpec_VERSION_MAJOR}.${HornSpec_VERSION_MINOR}.${HornSpec_VERSION_PATCH}")
-  if (DEFINED HornSpec_VERSION_TWEAK)
-    set (PACKAGE_VERSION "${PACKAGE_VERSION}-${HornSpec_VERSION_TWEAK}")
+          "${FreqHorn_VERSION_MAJOR}.${FreqHorn_VERSION_MINOR}.${FreqHorn_VERSION_PATCH}")
+  if (DEFINED FreqHorn_VERSION_TWEAK)
+    set (PACKAGE_VERSION "${PACKAGE_VERSION}-${FreqHorn_VERSION_TWEAK}")
   endif()
-  set (HornSpec_VERSION_INFO ${PACKAGE_VERSION})
+  set (FreqHorn_VERSION_INFO ${PACKAGE_VERSION})
 endif()
 
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR )
   message (FATAL_ERROR
-    "In-source builds are not allowed. Please clean your source tree and try again.")
+          "In-source builds are not allowed. Please clean your source tree and try again.")
 endif()
 
 enable_testing()
@@ -24,10 +24,10 @@ include (CTest)
 
 # Add path for custom modules
 list (APPEND CMAKE_MODULE_PATH
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 
-option (HornSpec_STATIC_EXE "Static executable." OFF)
+option (FreqHorn_STATIC_EXE "Static executable." OFF)
 
 set (CUSTOM_BOOST_ROOT "" CACHE PATH "Path to custom boost installation.")
 if (CUSTOM_BOOST_ROOT)
@@ -44,7 +44,7 @@ set (BOOST_COMPONENTS system)
 if (UNIT_TESTS)
   set (BOOST_COMPONENTS ${BOOST_COMPONENTS} unit_test_framework)
 endif()
-  find_package (Boost 1.71 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+find_package (Boost 1.71 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 if (Boost_FOUND)
   include_directories (${Boost_INCLUDE_DIRS})
 endif ()
@@ -61,18 +61,18 @@ else()
 endif()
 
 ExternalProject_Add(z3
-  GIT_REPOSITORY  ${Z3_REPO}
-  GIT_TAG ${Z3_TAG}
-  BUILD_IN_SOURCE 1
-  INSTALL_DIR ${CMAKE_BINARY_DIR}/run
-  CONFIGURE_COMMAND env CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER}
-  ./configure -p <INSTALL_DIR> -b build --staticlib ${Z3_DEBUG}
-  BUILD_COMMAND make -j3 -C build
-  INSTALL_COMMAND make -C build install
-  COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_LIST_FILE}
-  LOG_CONFIGURE 1
-  LOG_INSTALL 1
-  LOG_BUILD 1)
+        GIT_REPOSITORY  ${Z3_REPO}
+        GIT_TAG ${Z3_TAG}
+        BUILD_IN_SOURCE 1
+        INSTALL_DIR ${CMAKE_BINARY_DIR}/run
+        CONFIGURE_COMMAND env CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER}
+        ./configure -p <INSTALL_DIR> -b build --staticlib ${Z3_DEBUG}
+        BUILD_COMMAND make -j3 -C build
+        INSTALL_COMMAND make -C build install
+        COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_LIST_FILE}
+        LOG_CONFIGURE 1
+        LOG_INSTALL 1
+        LOG_BUILD 1)
 
 find_package(Z3 4.8.1)
 if (NOT Z3_FOUND)
@@ -91,32 +91,26 @@ endif()
 install (FILES ${CMAKE_CURRENT_SOURCE_DIR}/README.md DESTINATION .)
 # install all the licenses
 install (FILES  ${CMAKE_CURRENT_SOURCE_DIR}/license.txt
-  DESTINATION share/doc/HornSpec
-  RENAME HornSpec_license.txt)
+        DESTINATION share/doc/FreqHorn
+        RENAME FreqHorn_license.txt)
 
 if (EXISTS z3-prefix/src/z3/LICENSE.txt)
   install (
-    FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/LICENSE.txt
-    DESTINATION share/doc/HornSpec
-    RENAME z3_license.txt)
+          FILES
+          ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/LICENSE.txt
+          DESTINATION share/doc/FreqHorn
+          RENAME z3_license.txt)
 endif()
 
 if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/build)
   file(GLOB z3py
-    ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/build/*.py?
-    ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/build/*.py?
-    ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/build/*.so
-    ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/build/*.dylib
-    ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/build/*.dll
-    )
+          ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/build/*.py?
+          ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/build/*.py?
+          ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/build/*.so
+          ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/build/*.dylib
+          ${CMAKE_CURRENT_BINARY_DIR}/z3-prefix/src/z3/build/*.dll
+          )
   install(FILES ${z3py} DESTINATION lib/z3py)
-endif()
-
-find_package(OpenMP)
-if (OPENMP_FOUND)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-  #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 endif()
 
 find_package(Gmp REQUIRED)
@@ -128,24 +122,36 @@ else()
   set(GMPXX_LIB "")
 endif()
 
+find_package(OpenMP)
+if (OPENMP_FOUND)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+endif()
+
+find_package(Armadillo)
+if (ARMADILLO_FOUND)
+  add_definitions(-DHAVE_ARMADILLO)
+  include_directories(${ARMADILLO_INCLUDE_DIR})
+endif()
+
 install(DIRECTORY include/
-  DESTINATION include
-  FILES_MATCHING
-  PATTERN "*.hpp"
-  PATTERN "*.hh"
-  PATTERN "*.h"
-  PATTERN ".svn" EXCLUDE
-  )
+        DESTINATION include
+        FILES_MATCHING
+        PATTERN "*.hpp"
+        PATTERN "*.hh"
+        PATTERN "*.h"
+        PATTERN ".svn" EXCLUDE
+        )
 
 install(DIRECTORY ${CMAKE_BINARY_DIR}/include/
-  DESTINATION include
-  FILES_MATCHING
-  PATTERN "*.hpp"
-  PATTERN "*.hh"
-  PATTERN "*.h"
-  PATTERN "CMakeFiles" EXCLUDE
-  PATTERN ".svn" EXCLUDE
-  )
+        DESTINATION include
+        FILES_MATCHING
+        PATTERN "*.hpp"
+        PATTERN "*.hh"
+        PATTERN "*.h"
+        PATTERN "CMakeFiles" EXCLUDE
+        PATTERN ".svn" EXCLUDE
+        )
 
 set(CMAKE_CXX_EXTENSIONS ON)
 add_definitions(-Wno-redeclared-class-member -Wno-sometimes-uninitialized)
@@ -162,7 +168,7 @@ include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 ### add our include directories to the front, overriding directories
 ### specified by external packages.
 include_directories(BEFORE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_CURRENT_BINARY_DIR}/include)
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 add_subdirectory(tools)

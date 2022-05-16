@@ -9,7 +9,7 @@ using namespace boost;
 namespace ufo
 {
   // all adapted from Horn.hpp; experimental; to merge with Horn.hpp at some point
-  inline bool rewriteHelperConsts(Expr& body, Expr v1, Expr v2)
+  inline bool rewriteHelperConsts_nonlinear(Expr& body, Expr v1, Expr v2)
   {
     if (isOpX<MPZ>(v1))
     {
@@ -89,6 +89,14 @@ namespace ufo
     int qCHCNum;  // index of the query in chc
     int total_var_cnt = 0;
     string infile;
+
+      //ToDo: Remove later on; move from Horn.hpp
+      map<Expr, vector<int>> outgs;
+      map<Expr, vector<vector<int>>> cycles, prefixes;
+      bool cycleSearchDone = false;
+      vector<vector<int>> acyclic;
+      map<Expr, vector<vector<int>>>::iterator cyclesIt;
+      int debug;
 
     CHCs(ExprFactory &efac, EZ3 &z3) : m_efac(efac), m_z3(z3) {};
 
@@ -401,6 +409,170 @@ namespace ufo
         }
         outs() << "\n    body: " << * hr.body << "\n";
     }
+
+//ToDo: Remove later on; move from Horn.hpp
+      vector<int> getPrefix(Expr rel) // get only first one; to extend
+      {
+          assert(!cycles[rel].empty());
+          assert(!prefixes[rel].empty());
+          vector<int> pref = prefixes[rel][0];
+          assert(!pref.empty());
+          if (chcs[pref[0]].isFact)
+              return pref;
+          auto it1 = chcs[pref[0]].srcRelations.begin();
+          vector<int> ppref = getPrefix(*it1);//ToDo: ilia update
+          ppref.insert(ppref.end(), pref.begin(), pref.end());
+          return ppref;
+      }
+
+      bool hasCycles()
+      {
+          if (cycleSearchDone) return cycles.size() > 0;
+          findCycles();
+
+          // assert (cycles.size() == prefixes.size());
+          /*
+          if (debug >= 3)
+            for (int i = 0; i < cycles.size(); i++)
+            {
+              auto & c = prefixes[i];
+              outs () << "      pref: ";
+              for (auto & chcNum : c) outs () << *chcs[chcNum].srcRelation << " -> ";
+              outs () << "    [";
+              for (auto & chcNum : c) outs () << chcNum << " -> ";
+              outs () << "]  ";
+              auto & d = cycles[i];
+              outs () << "\n      cycle: ";
+              for (auto & chcNum : d) outs () << *chcs[chcNum].srcRelation << " -> ";
+              outs () << "    [";
+              for (auto & chcNum : d) outs () << chcNum << " -> ";
+              outs () << "]\n\n";
+            }
+          */
+          return (cycles.size() > 0);
+      }
+
+      void findCycles()
+      {
+          ExprVector av;
+          ExprVector endRels = {failDecl};
+          for (auto & d : decls)
+          {
+              if (outgs[d->left()].empty())
+                  endRels.push_back(d->left());
+
+              // heuristics for SeaHorn-encoding:
+              if (lexical_cast<string>(d).find(".exit.") !=std::string::npos)
+                  endRels.push_back(d->left());
+          }
+
+          for (auto & r : endRels)
+              findCycles(mk<TRUE>(m_efac), r, av);
+          // print(false, true);
+          outs () << "global traces num: " << acyclic.size() << "\n";
+          for (auto & a : cycles)
+              outs () << "  traces num for: " << a.first << ": " << a.second.size() << "\n";
+
+          cycleSearchDone = true;
+          cyclesIt = cycles.begin();
+      }
+
+      bool findCycles(Expr src, Expr dst, ExprVector& avoid)
+      {
+          if (debug >= 2) outs () << "\nfindCycles:  " << src << " => " << dst << "\n";
+          vector<vector<int>> nonCycleTraces;
+          ExprVector highLevelRels;
+          for (int i = 1; i < chcs.size(); i++)
+          {
+              if (debug >= 2)
+              {
+                  outs () << ".";
+                  outs().flush();
+              }
+//              getAllAcyclicTraces(src, dst, i, vector<int>(), nonCycleTraces, avoid);
+          }
+
+          bool tracesFound = nonCycleTraces.size() > 0;
+          map <Expr, vector<vector<int>>> prefs;
+          for (auto & d : nonCycleTraces)
+          {
+              vector<int> tmp;
+              for (auto & chcNum : d)
+              {
+                  if (chcs[chcNum].isQuery) break;      // last iter anyway
+                  Expr& r = chcs[chcNum].dstRelation;
+                  tmp.push_back(chcNum);
+                  if (find(avoid.begin(), avoid.end(), r) == avoid.end())
+                  {
+                      prefs[r].push_back(tmp);
+                      unique_push_back(r, highLevelRels);
+                  }
+              }
+          }
+
+          if (tracesFound)
+          {
+              if (src == dst)
+              {
+                  if (debug)
+                      outs () << "traces num for " << src << ": " << nonCycleTraces.size() << "\n";
+                  for (auto & c : nonCycleTraces)
+                      unique_push_back(c, cycles[src]);
+              }
+              else
+              {
+                  for (auto & c : nonCycleTraces)
+                      unique_push_back(c, acyclic);
+              }
+          }
+          else
+          {
+              assert(src == dst);
+          }
+
+          ExprVector avoid2 = avoid;
+          for (auto & d : highLevelRels)
+          {
+              avoid2.push_back(d);
+              bool nestedCycle = findCycles(d, d, avoid2);
+              if (nestedCycle)
+              {
+                  prefixes[d] = prefs[d]; // to debug
+              }
+          }
+
+          // WTO sorting is here now:
+          if (tracesFound)
+          {
+              if (src == dst)
+              {
+//                  unique_push_back(src, loopheads);      // could there be duplicates?
+                  if (debug) outs () << "  loophead found: " << src << "\n";
+              }
+              else if (debug) outs () << "  global:\n";
+          }
+
+          for (auto c : nonCycleTraces)
+          {
+              if (debug > 5)
+              {
+//                  outs () << "    trace: " << chcs[c[0]].srcRelation;
+                  for (auto h : c)
+                      outs () << " -> " << chcs[h].dstRelation << " ";
+                  outs () << "\n";
+              }
+              else if (debug)
+              {
+//                  outs () << "traces num for " << chcs[c[0]].srcRelation << ": "
+//                          << c.size() << "\n";
+              }
+
+//              for (auto h : c)
+//                  unique_push_back(&chcs[h], wtoCHCs);
+          }
+
+          return tracesFound;
+      }
   };
 }
 #endif
