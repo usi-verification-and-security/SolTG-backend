@@ -90,13 +90,13 @@ namespace ufo
     int total_var_cnt = 0;
     string infile;
 
-      //ToDo: Remove later on; move from Horn.hpp
-      map<Expr, vector<int>> outgs;
-      map<Expr, vector<vector<int>>> cycles, prefixes;
-      bool cycleSearchDone = false;
-      vector<vector<int>> acyclic;
-      map<Expr, vector<vector<int>>>::iterator cyclesIt;
-      int debug;
+      //ToDo: Remove or recheck later on; move from Horn.hpp
+    map<Expr, vector<int>> outgs; //Todo: Should be map<ExprVector, vector<int>> outgs ?
+    map<Expr, vector<vector<int>>> cycles, prefixes;
+    bool cycleSearchDone = false;
+    vector<vector<int>> acyclic;
+    map<Expr, vector<vector<int>>>::iterator cyclesIt;
+    int debug;
 
     CHCs(ExprFactory &efac, EZ3 &z3) : m_efac(efac), m_z3(z3) {};
 
@@ -327,7 +327,7 @@ namespace ufo
         hr.assignVarsAndRewrite (origSrcSymbs, tmp,
                                  origDstSymbs, invVars[hr.dstRelation]);
 
-        hr.body = simpleQE(hr.body, hr.locVars);
+       // hr.body = simpleQE(hr.body, hr.locVars);
 
         // GF: ideally, hr.locVars should be empty after QE,
         // but the QE procedure is imperfect, so
@@ -339,6 +339,12 @@ namespace ufo
             it = hr.locVars.erase(it);
           else ++it;
         }
+      }
+
+      for (int i = 0; i < chcs.size(); i++) {
+          if (chcs[i].srcRelations.size() > 0 ) {
+              outgs[chcs[i].srcRelations[0]].push_back(i);
+          }
       }
 
       for (int i = 0; i < chcs.size(); i++)
@@ -394,7 +400,7 @@ namespace ufo
         for (int i = 0; i < hr.srcRelations.size(); i++)
         {
           outs () << * hr.srcRelations[i];
-          outs () << " (";
+          outs () << " srcRelations: (";
           for(auto &a: hr.srcVars[i]) outs() << *a << ", ";
             outs () << "\b\b)";
           outs () << " /\\ ";
@@ -403,11 +409,19 @@ namespace ufo
 
         if (hr.dstVars.size() > 0)
         {
-          outs () << " (";
+          outs () << " dstVars: (";
           for(auto &a: hr.dstVars) outs() << *a << ", ";
           outs () << "\b\b)";
         }
         outs() << "\n    body: " << * hr.body << "\n";
+
+        if (hr.locVars.size() > 0)
+        {
+            outs () << " locVars: (";
+            for(auto &a: hr.locVars) outs() << *a << ", ";
+            outs () << "\n)";
+        }
+        //outs() << "\n    locVars: " << * hr.locVars << "\n";
     }
 
 //ToDo: Remove later on; move from Horn.hpp

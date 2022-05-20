@@ -1658,7 +1658,7 @@ public:
     }
 };
 
-inline void testgen(string smt, set<int>& nums, unsigned maxAttempts, unsigned to,
+inline void testgen_xxx(string smt, set<int>& nums, unsigned maxAttempts, unsigned to,
                     bool freqs, bool aggp, bool enableDataLearning, bool doElim,
                     bool doDisj, int doProp, bool dAllMbp, bool dAddProp, bool dAddDat,
                     bool dStrenMbp, bool toSkip, int invMode, int lookahead,
@@ -1674,10 +1674,10 @@ inline void testgen(string smt, set<int>& nums, unsigned maxAttempts, unsigned t
     {
         ruleManager.parse(smt);
         ruleManager.print();
-//        ruleManager.reParse(lb, lmax);
+//        ruleManager.reParse(lb, lmax); //ToDo: currently not supported for Nonlinear
     }
-//    else
-//    {
+    else
+    {
 //        if (lb)
 //        {
 //            outs () << "LBTG currently does not support invariants\n";
@@ -1748,20 +1748,21 @@ inline void testgen(string smt, set<int>& nums, unsigned maxAttempts, unsigned t
 //        {
 //            ruleManager.reParse();
 //        }
-//    }
-//
-//    if (nums.size() > 0)
-//    {
-//        LBExpl bnd1(ruleManager, lookahead, prio, false);
-//        bnd1.initKeys(nums, lb);
-//        bnd1.setInvs(invs);
+    }
+
+    if (nums.size() > 0)
+    {
+        LBExpl bnd1(ruleManager, lookahead, prio, false);
+        bnd1.initKeys(nums, lb);
+        bnd1.setInvs(invs);
+        //bnd1.exploreTracesTG(1, 1000, toSkip);
 //        if (lb && lmax)
 //            bnd1.exploreTracesMaxLb();
 //        else if (lb)
 //            bnd1.exploreTracesLBTG(1, 1000);
 //        else
 //            bnd1.exploreTracesTG(1, 1000, toSkip);
-//    }
+    }
 }
 
 // GF: not synchronized with the `rnd` branch (yet)

@@ -4654,6 +4654,24 @@ namespace ufo
         ExprVector repls;
         simplBoolReplCnjHlp(hardVars, cnjs, facts, repls);
     }
+
+  inline static void getKeyVars (Expr fla, Expr key, Expr &var)
+  {
+    if (isOpX<EQ>(fla) && isOpX<PLUS>(fla->right()) && fla->right()->right() == key){
+      //assert (var == NULL);
+      var = fla->left();
+    } else if (isOpX<EQ>(fla) && isOpX<NEQ>(fla->right()) && fla->right()->right() == mk<UN_MINUS>(key)){
+      //assert (var == NULL);
+      var = fla->left();
+    } else if (isOpX<EQ>(fla) && isOpX<EQ>(fla->right()) &&
+               isOpX<UN_MINUS>(fla->right()->right()) && fla->right()->right()->left() == key){
+      //assert (var == NULL);
+      var = fla->left();
+    } else {
+      for (unsigned i = 0; i < fla->arity(); i++)
+        getKeyVars(fla->arg(i), key, var);
+    }
+  }
 }
 
 #endif

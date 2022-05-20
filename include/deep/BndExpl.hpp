@@ -288,24 +288,6 @@ namespace ufo
 //            ssaBindVars[trace] = bindVars;
 //        }
 
-        inline static void getKeyVars (Expr fla, Expr key, Expr &var)
-        {
-            if (isOpX<EQ>(fla) && isOpX<PLUS>(fla->right()) && fla->right()->right() == key){
-                //assert (var == NULL);
-                var = fla->left();
-            } else if (isOpX<EQ>(fla) && isOpX<NEQ>(fla->right()) && fla->right()->right() == mk<UN_MINUS>(key)){
-                //assert (var == NULL);
-                var = fla->left();
-            } else if (isOpX<EQ>(fla) && isOpX<EQ>(fla->right()) &&
-                       isOpX<UN_MINUS>(fla->right()->right()) && fla->right()->right()->left() == key){
-                //assert (var == NULL);
-                var = fla->left();
-            } else {
-                for (unsigned i = 0; i < fla->arity(); i++)
-                    getKeyVars(fla->arg(i), key, var);
-            }
-        }
-
 
         map<int, Expr> eKeys;
         set<vector<int>> unsat_prefs;
@@ -326,6 +308,14 @@ namespace ufo
                 for (auto it = eKeys.begin(); it != eKeys.end(); ++it)
                 {
                     Expr var = NULL;
+//                    outs()  << hr.body << "\n";
+//                    outs()  << hr.head << "\n";
+//                    for (int i = 0; i < hr.srcRelations.size(); i++) {
+//                        auto &a = hr.srcRelations[i];
+//                        outs()  << i << " : " << a << "\n";
+//                    }
+//                    outs()  << "dstRelation : "<< hr.dstRelation << "\n";
+
                     getKeyVars(hr.body, (*it).second, var);
                     if (var != NULL)
                     {
@@ -354,64 +344,70 @@ namespace ufo
             }
         }
 
-//        void exploreTracesTG(int cur_bnd, int bnd, bool skipTerm)
-//        {
-//            set<int> todoCHCs;
-//
-//            // first, get points of control-flow divergence
-//            for (auto & d : ruleManager.decls)
-//                if (ruleManager.outgs[d->left()].size() > 1)
-//                    for (auto & o : ruleManager.outgs[d->left()])
-//                        todoCHCs.insert(o);
-//
-//            // if the code is straight, just add queries
-//            if (todoCHCs.empty())
-//                for (int i = 0; i < ruleManager.chcs.size(); i++)
-//                    if (ruleManager.chcs[i].isQuery)
-//                        todoCHCs.insert(i);
-//
-//
-//            while (cur_bnd <= bnd && !todoCHCs.empty())
-//            {
-//                outs () << "new iter with cur_bnd = "<< cur_bnd <<"\n";
-//                set<int> toErCHCs;
-//                for (auto & a : todoCHCs)
-//                {
-//                    if (find(toErCHCs.begin(), toErCHCs.end(), a) != toErCHCs.end())
-//                        continue;
-//                    vector<vector<int>> traces;
+        void exploreTracesTG(int cur_bnd, int bnd, bool skipTerm)
+        {
+            set<int> todoCHCs;
+
+            // first, get points of control-flow divergence
+            for (auto & d : ruleManager.decls)
+                if (ruleManager.outgs[d->left()].size() > 1)
+                    for (auto & o : ruleManager.outgs[d->left()])
+                        todoCHCs.insert(o);
+
+            // if the code is straight, just add queries
+            if (todoCHCs.empty())
+                for (int i = 0; i < ruleManager.chcs.size(); i++)
+                    if (ruleManager.chcs[i].isQuery)
+                        todoCHCs.insert(i);
+
+
+            while (cur_bnd <= bnd && !todoCHCs.empty())
+            {
+                outs () << "new iter with cur_bnd = "<< cur_bnd <<"\n";
+                set<int> toErCHCs;
+                for (auto & a : todoCHCs)
+                {
+                    if (find(toErCHCs.begin(), toErCHCs.end(), a) != toErCHCs.end())
+                        continue;
+                    vector<vector<int>> traces;
+                    //ToDo: update for Nonlinear
 //                    getAllTracesTG(mk<TRUE>(m_efac), a, cur_bnd, vector<int>(), traces);
-//                    outs () << "  exploring traces (" << traces.size() << ") of length "
-//                            << cur_bnd << ";       # of todos = " << todoCHCs.size() << "\n";
-//                    /*         for (auto & b : todoCHCs)
-//                             {
-//                               outs () << b << ", ";
-//                             }
-//                             outs () << "\b\b)\n";*/
-//
-//                    int tot = 0;
-//                    for (int trNum = 0; trNum < traces.size() && !todoCHCs.empty(); trNum++)
-//                    {
-//                        auto & t = traces[trNum];
-//                        set<int> apps;
-//                        for (auto c : t)
-//                            if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end() &&
-//                                find(toErCHCs.begin(), toErCHCs.end(), c) == toErCHCs.end())
-//                                apps.insert(c);
-//                        if (apps.empty()) continue;  // should not happen
-//
-//                        tot++;
-//
-//                        auto & hr = ruleManager.chcs[t.back()];
+                    outs () << "  exploring traces (" << traces.size() << ") of length "
+                            << cur_bnd << ";       # of todos = " << todoCHCs.size() << "\n";
+                    /*         for (auto & b : todoCHCs)
+                             {
+                               outs () << b << ", ";
+                             }
+                             outs () << "\b\b)\n";*/
+
+                    int tot = 0;
+                    for (int trNum = 0; trNum < traces.size() && !todoCHCs.empty(); trNum++)
+                    {
+                        auto & t = traces[trNum];
+                        set<int> apps;
+                        for (auto c : t)
+                            if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end() &&
+                                find(toErCHCs.begin(), toErCHCs.end(), c) == toErCHCs.end())
+                                apps.insert(c);
+                        if (apps.empty()) continue;  // should not happen
+
+                        tot++;
+
+                        auto & hr = ruleManager.chcs[t.back()];
+                        //ToDo: update for Nonlinear
+                        Expr lms;
+                        for (int i = 0; i < hr.srcRelations.size(); i++) {
+                            lms = invs[hr.srcRelations[i]];
+                        }
 //                        Expr lms = invs[hr.srcRelation];
-//                        if (lms != NULL && (bool)u.isFalse(mk<AND>(lms, hr.body)))
-//                        {
-//                            outs () << "\n    unreachable: " << t.back() << "\n";
-//                            toErCHCs.insert(t.back());
-//                            unreach_chcs.insert(t.back());
-//                            unsat_prefs.insert(t);
-//                            continue;
-//                        }
+                        if (lms != NULL && (bool)u.isFalse(mk<AND>(lms, hr.body)))
+                        {
+                            outs () << "\n    unreachable: " << t.back() << "\n";
+                            toErCHCs.insert(t.back());
+                            unreach_chcs.insert(t.back());
+                            unsat_prefs.insert(t);
+                            continue;
+                        }
 //
 //                        int suff = 1;
 //                        bool suffFound = false;
@@ -473,14 +469,14 @@ namespace ufo
 //                                }
 //                            }
 //                        }
-//                    }
-//                    outs () << "    -> actually explored:  " << tot << ", |unsat prefs| = " << unsat_prefs.size() << "\n";
-//                }
-//                for (auto a : toErCHCs) todoCHCs.erase(a);
-//                cur_bnd++;
-//            }
-//            outs () << "Done with TG\n";
-//        }
+                    }
+                    outs () << "    -> actually explored:  " << tot << ", |unsat prefs| = " << unsat_prefs.size() << "\n";
+                }
+                for (auto a : toErCHCs) todoCHCs.erase(a);
+                cur_bnd++;
+            }
+            outs () << "Done with TG\n";
+        }
 
         void letItRun(Expr model, Expr src, set<int>& todoCHCs, set<int>& toErCHCs, int lh, map<int, ExprVector> tmp)
         {
