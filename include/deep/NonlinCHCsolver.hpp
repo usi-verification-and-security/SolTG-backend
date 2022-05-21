@@ -2,6 +2,7 @@
 #define NONLINCHCSOLVER__HPP__
 
 #include "HornNonlin.hpp"
+#include "TGTree.hpp"
 
 #include <fstream>
 #include <chrono>
@@ -247,9 +248,18 @@ namespace ufo
     {
       set<int> todoCHCs;
 
+      //ToDo: find out how to get exit and entry values
+      int entry = 0, exit_v = 0;
+      if (ruleManager.outgs.size() > 0) {
+        //entry = ruleManager.outgs[0].
+      }
+      auto chcG = new deep::chcTreeGenerator{entry, exit_v};
+
       // first, get points of control-flow divergence
       for (auto & d : ruleManager.decls)
         if (ruleManager.outgs[d->left()].size() > 1)
+          //ToDo add chc_ints: void add_chc_int(vector<int> srs_input, int dst_input)
+          //chcG->add_chc_int(srcs, dst);
           for (auto & o : ruleManager.outgs[d->left()])
             todoCHCs.insert(o);
 
@@ -269,6 +279,9 @@ namespace ufo
           if (find(toErCHCs.begin(), toErCHCs.end(), a) != toErCHCs.end())
             continue;
           vector<vector<int>> traces;
+          //trace should be vector<chcTree *> traces
+          //vector<deep::chcTree *> traces = chcG->getNext();
+
           //ToDo: update for Nonlinear
 //                    getAllTracesTG(mk<TRUE>(m_efac), a, cur_bnd, vector<int>(), traces);
           outs () << "  exploring traces (" << traces.size() << ") of length "
