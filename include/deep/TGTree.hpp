@@ -1,5 +1,6 @@
 #include <list>
 #include <map>
+#include <set>
 
 using namespace std;
 
@@ -8,7 +9,7 @@ typedef struct {
   int ds;
 } chc_structure;
 
-int entry_value;
+vector<int> entry_values;
 map<int, vector<vector<int>>> ds_map_glob;
 
 namespace deep {
@@ -77,13 +78,36 @@ namespace deep {
       vector<node *> tmp_nodes;
       for (auto c : childrens){
         auto tmp = new node{c};
-        if (c != entry_value){
+        if (!contains_entry(c)){
           non_entry_leaves.push_back(tmp);
         }
         tmp_nodes.push_back(tmp);
       }
 
       root = new node{parent, childrens};
+    }
+
+    set<int> get_set(){
+      set<int> out;
+      out.insert(root->element);
+      for(auto e: root->children){
+        get_set(out, *e);
+      }
+      return out;
+    }
+
+    void get_set(set<int> & out, node & n){
+      out.insert(n.element);
+      for(auto  e: n.children){
+        get_set(out, *e);
+      }
+    }
+
+    void print_set(set<int> & s){
+      for (auto e: s){
+        cout << e << " ";
+      }
+      cout << endl;
     }
 
     ~chcTree() {
@@ -104,7 +128,7 @@ namespace deep {
 
     static vector<node *> find_all_non_entry_leaves(node* n){ // ToDo: check again, maybe not the best solution
       vector<node *> tmp;
-      if(n->children.empty() && n->element != entry_value) {
+      if(n->children.empty() && !contains_entry(n->element)) {
         tmp.push_back(n);
         return tmp;
       }else{
@@ -250,7 +274,7 @@ namespace deep {
     }
 
     void get_all_permutations(int index, vector<vector<int>> &out,
-                                             vector<vector<vector<int>>> &out_collection){
+                              vector<vector<vector<int>>> &out_collection){
       if (index >= non_entry_leaves.size()){
         vector<vector<int>> tmp;
         for (int i = 0; i < out.size(); i++) {
@@ -272,6 +296,15 @@ namespace deep {
       }
     }
 
+    static bool contains_entry(const int & elem){
+      bool result = false;
+      if(find(entry_values.begin(), entry_values.end(), elem) != entry_values.end() )
+      {
+        result = true;
+      }
+      return result;
+    }
+
     void extend_non_entry_leaves(vector<vector<int>> new_mutations){
       vector<node *> new_non_entry_leaves;
       for (int i = 0; i < non_entry_leaves.size(); i++){
@@ -279,7 +312,7 @@ namespace deep {
         vector<node *> tmp_node_list;
         for (auto nm: new_mutation){
           auto n_tmp_node = new node{nm};
-          if (nm != entry_value){
+          if (!contains_entry(nm)){
             new_non_entry_leaves.push_back(n_tmp_node);
           }
           tmp_node_list.push_back(n_tmp_node);
@@ -293,38 +326,69 @@ namespace deep {
 
   class chcTreeGenerator{
   private:
-    int entry;
-    int exit_v; //ToDo could be more then one exit point? Should effects only init costructor
+    vector<int> entry;
+    int exit_v;
     vector<chc_structure> chc_int;
-    int current_height;
     vector<chcTree *> trees;
     //vector<chcTree *> fullTrees;
     map<int, vector<vector<int>>> ds_map;
   public:
-    chcTreeGenerator(int ep, int ex){
+    chcTreeGenerator(vector<int> ep, int ex){
       entry = ep;
       exit_v = ex;
-      entry_value = ep;
+      entry_values = ep;
+    }
+
+    bool contains_entry(const int & elem){
+      bool result = false;
+      if( find(entry.begin(), entry.end(), elem) != entry.end() )
+      {
+        result = true;
+      }
+      return result;
+    }
+
+    bool isV_Equal(std::vector<int> &first, std::vector<int> &second)
+    {
+      if (first.size() != second.size()) {
+        return false;
+      }
+
+      std::sort(first.begin(), first.end());
+      std::sort(second.begin(), second.end());
+
+      return first == second;
     }
 
     void add_chc_int(vector<int> srs_input, int dst_input){
+      //check if already exist
+      for (int i = 0; i < chc_int.size(); i++ ){
+        if(dst_input == chc_int[i].ds){
+          bool flag = false;
+          for(int j = 0; j < chc_int[i].srs.size(); j++){
+            if (isV_Equal(chc_int[i].srs, srs_input)){
+              return;
+            }
+          }
+        }
+      }
       chc_structure tmp_s = *new chc_structure{srs_input, dst_input};
       chc_int.push_back(tmp_s);
     }
 
     void create_map(){
-        for(auto chc: chc_int){
-          if(ds_map.count(chc.ds) > 0){
-            ds_map.find(chc.ds)->second.push_back(chc.srs);
-            ds_map_glob.find(chc.ds)->second.push_back(chc.srs);
-          }else{
-            vector<vector<int>> tmp{chc.srs};
-            ds_map.insert({chc.ds, tmp});
-            ds_map_glob.insert({chc.ds, tmp});
+      for(auto chc: chc_int){
+        if(ds_map.count(chc.ds) > 0){
+          ds_map.find(chc.ds)->second.push_back(chc.srs);
+          ds_map_glob.find(chc.ds)->second.push_back(chc.srs);
+        }else{
+          vector<vector<int>> tmp{chc.srs};
+          ds_map.insert({chc.ds, tmp});
+          ds_map_glob.insert({chc.ds, tmp});
 
-          }
         }
-        //ds_map_glob = ds_map;
+      }
+      //ds_map_glob = ds_map;
     }
 
     void init_tree(){
@@ -340,7 +404,7 @@ namespace deep {
     bool is_only_entries(vector<vector<int>> mutation){
       for (int i = 0; i < mutation.size(); i++){
         for (int j = 0; j < mutation[i].size(); j++){
-          if (mutation[i][j] != entry){
+          if (!contains_entry(mutation[i][j])){
             return false;
           }
         }
@@ -350,9 +414,11 @@ namespace deep {
 
     void print_trees(){
       cout << "# of existing trees: " << trees.size() << " existing tree : " << endl;
-//      for (auto t: trees){
-//        t->printInOrder();
-//      }
+      for (auto t: trees){
+        t->printInOrder();
+        auto tmp = t->get_set();
+        t->print_set(tmp);
+      }
     }
 
     vector<chcTree *> getNext(){

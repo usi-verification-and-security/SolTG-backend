@@ -351,6 +351,33 @@ namespace ufo
         incms[chcs[i].dstRelation].push_back(i);
     }
 
+    void print_parse_results(){
+      outs() << "chcs \n";
+      for (int i = 0; i < chcs.size(); i++){
+        outs() << i << " srs: ";
+        for (int j = 0; j < chcs[i].srcRelations.size(); j++) {
+          outs() << " " <<chcs[i].srcRelations[j]->getId();
+        }
+        outs() << " dst: " << chcs[i].dstRelation->getId() << "\n";
+      }
+      int i = 0;
+      outs() << "decls \n";
+      for (auto d: decls){
+        outs() << i << " left: " << d->left()->getId() << " right: " << d->right()->getId() << "\n";
+        i++;
+      }
+      i = 0;
+      outs() << "outgs \n";
+      for (auto d: outgs){
+        outs() << i << " first: " << d.first->getId() << " second: ";
+        for (auto s: d.second){
+          outs() << s << " ";
+        }
+        outs() << "\n";
+        i++;
+      }
+    }
+
     
     void addFailDecl(Expr decl)
     {

@@ -161,8 +161,11 @@ namespace ufo
                   ssaSteps.push_back(body);
               }
 
-              if (u.isSat(conjoin(ssaSteps,
-                                  m_efac))) // TODO: optimize with incremental SMT solving (i.e., using push / pop)
+              outs () << " - ssa - - - - -\n";
+              for(auto & s : ssaSteps){
+                outs () << "    step: " << s << "\n";
+              }
+              if (u.isSat(ssaSteps)) // TODO: optimize with incremental SMT solving (i.e., using push / pop)
               {
                   Result_t res_tmp = solveIncrementally(bound, unr + 1, rels2, args2);
                   if (res_tmp == Result_t::SAT) return Result_t::SAT;           // bug is found for some combination
@@ -173,7 +176,7 @@ namespace ufo
       }
 
       // naive solving, without invariant generation
-      void solveIncrementally(int bound) {
+      void solveIncrementally(int bound = 3) {
           ExprVector query;
           query.push_back(ruleManager.failDecl);
           vector <ExprVector> empt;
@@ -244,16 +247,65 @@ namespace ufo
         }
       }
 
+    deep::chcTreeGenerator * initChcTree(){
+      set<int> entries_tmp;
+      set<int> src_set;
+      set<int> dst_set;
+      int exit_v = -1;
+      for (int i  = 0; i < ruleManager.chcs.size(); i++){
+        dst_set.insert(ruleManager.chcs[i].dstRelation->getId());
+        if(ruleManager.chcs[i].isFact){
+          auto entry = ruleManager.chcs[i].dstRelation->getId();
+          cout << entry << endl;
+          entries_tmp.insert(entry);
+        }else{
+          auto tmp_src = ruleManager.chcs[i].srcRelations;
+          for (int j = 0; j < tmp_src.size(); j++){
+            src_set.insert(tmp_src[j]->getId());
+          }
+        }
+      }
+      //find exit id
+      set<int>::iterator itr;
+      for (itr = dst_set.begin();itr != dst_set.end(); itr++){
+        if(src_set.find(*itr) == src_set.end() && entries_tmp.find(*itr) == entries_tmp.end()){
+          exit_v = *itr;
+        }
+      }
+      //vector<int> entries(entries_tmp.begin(), entries_tmp.end());
+      vector<int> entries; //all leaves end with "-1", because sometimes node can be leaf (isFact=true) and not leaf
+      entries.push_back(-1);
+
+      auto chcG = new deep::chcTreeGenerator{entries, exit_v};
+      for (int i  = 0; i < ruleManager.chcs.size(); i++) {
+        if (!ruleManager.chcs[i].isFact) {
+          auto tmp_src = ruleManager.chcs[i].srcRelations;
+          vector<int> input_src;
+          for (int j = 0; j < tmp_src.size(); j++){
+            input_src.push_back(tmp_src[j]->getId());
+          }
+          chcG->add_chc_int(input_src, ruleManager.chcs[i].dstRelation->getId());
+        }else{
+          vector<int> input_src;
+          input_src.push_back(-1);
+          chcG->add_chc_int(input_src, ruleManager.chcs[i].dstRelation->getId());
+        }
+      }
+      chcG->create_map();
+      chcG->init_tree();
+      return chcG;
+      }
+
+
     void exploreTracesNonLinearTG(int cur_bnd, int bnd, bool skipTerm)
     {
       set<int> todoCHCs;
+      auto chcG = initChcTree();
 
       //ToDo: find out how to get exit and entry values
-      int entry = 0, exit_v = 0;
       if (ruleManager.outgs.size() > 0) {
         //entry = ruleManager.outgs[0].
       }
-      auto chcG = new deep::chcTreeGenerator{entry, exit_v};
 
       // first, get points of control-flow divergence
       for (auto & d : ruleManager.decls)
@@ -273,18 +325,31 @@ namespace ufo
       while (cur_bnd <= bnd && !todoCHCs.empty())
       {
         outs () << "new iter with cur_bnd = "<< cur_bnd <<"\n";
+
+        auto trees = chcG->getNext();
+        if(trees.size() > 0){
+          outs () << "MORE" <<"\n";
+        }
+        cout << cur_bnd << endl;
+        cout << "# of terminals trees: " << trees.size() << " terminals tree : " << endl;
+        for (auto t : trees){
+          t->printInOrder();
+        }
+
+        chcG->print_trees();
+
         set<int> toErCHCs;
         for (auto & a : todoCHCs)
         {
           if (find(toErCHCs.begin(), toErCHCs.end(), a) != toErCHCs.end())
             continue;
-          vector<vector<int>> traces;
+          //vector<vector<int>> traces;
           //trace should be vector<chcTree *> traces
           //vector<deep::chcTree *> traces = chcG->getNext();
 
           //ToDo: update for Nonlinear
 //                    getAllTracesTG(mk<TRUE>(m_efac), a, cur_bnd, vector<int>(), traces);
-          outs () << "  exploring traces (" << traces.size() << ") of length "
+          outs () << "  exploring traces (" << trees.size() << ") of length "
                   << cur_bnd << ";       # of todos = " << todoCHCs.size() << "\n";
           /*         for (auto & b : todoCHCs)
                    {
@@ -293,33 +358,42 @@ namespace ufo
                    outs () << "\b\b)\n";*/
 
           int tot = 0;
-          for (int trNum = 0; trNum < traces.size() && !todoCHCs.empty(); trNum++)
+          for (int trNum = 0; trNum < trees.size() && !todoCHCs.empty(); trNum++)
           {
-            auto & t = traces[trNum];
+            auto & tree = trees[trNum];
+            auto t = tree->get_set();
             set<int> apps;
-            for (auto c : t)
+            for (int c : t) {
+              Expr ef;
+              for (auto d: ruleManager.decls) { //ToDo:add Expr ID <=> Expr map struction
+                if (d->getId() == c) {
+                  ef = d;
+                }
+              }
+              auto toFind = ruleManager.outgs[ef];
               if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end() &&
                   find(toErCHCs.begin(), toErCHCs.end(), c) == toErCHCs.end())
                 apps.insert(c);
+            }
             if (apps.empty()) continue;  // should not happen
 
             tot++;
 
-            auto & hr = ruleManager.chcs[t.back()];
-            //ToDo: update for Nonlinear
-            Expr lms;
-            for (int i = 0; i < hr.srcRelations.size(); i++) {
-              lms = invs[hr.srcRelations[i]];
-            }
-//                        Expr lms = invs[hr.srcRelation];
-            if (lms != NULL && (bool)u.isFalse(mk<AND>(lms, hr.body)))
-            {
-              outs () << "\n    unreachable: " << t.back() << "\n";
-              toErCHCs.insert(t.back());
-              unreach_chcs.insert(t.back());
-              unsat_prefs.insert(t);
-              continue;
-            }
+//            auto & hr = ruleManager.chcs[t.back()];
+//            //ToDo: update for Nonlinear
+//            Expr lms;
+//            for (int i = 0; i < hr.srcRelations.size(); i++) {
+//              lms = invs[hr.srcRelations[i]];
+//            }
+////                        Expr lms = invs[hr.srcRelation];
+//            if (lms != NULL && (bool)u.isFalse(mk<AND>(lms, hr.body)))
+//            {
+//              outs () << "\n    unreachable: " << t.back() << "\n";
+//              toErCHCs.insert(t.back());
+//              unreach_chcs.insert(t.back());
+//              unsat_prefs.insert(t);
+//              continue;
+//            }
 //
 //                        int suff = 1;
 //                        bool suffFound = false;
@@ -391,8 +465,7 @@ namespace ufo
     }
 
     inline void
-      solveNonlin(string smt, int inv, int stren, bool maximal, const vector <string> &relsOrder, bool useGAS,
-                  bool usesygus, bool useUC, bool newenc, bool fixCRels, string syguspath) {
+      solveNonlin(string smt, int inv) {
           ExprFactory m_efac;
           EZ3 z3(m_efac);
           CHCs ruleManager(m_efac, z3);
@@ -413,14 +486,17 @@ namespace ufo
       ExprMap invs;
       CHCs ruleManager(m_efac, z3);
       ruleManager.parse(smt);
+      ruleManager.print_parse_results();
       NonlinCHCsolver nonlin(ruleManager);
       ruleManager.print();
+
+      nonlin.solveIncrementally();
 
       if (nums.size() > 0) {
         nonlin.initKeys(nums, lb);
         nonlin.setInvs(invs);
         // todo
-        nonlin.exploreTracesNonLinearTG(1, 10, toSkip);
+        nonlin.exploreTracesNonLinearTG(1, 12, toSkip);
       }
     }
 };
