@@ -256,7 +256,7 @@ namespace ufo
         dst_set.insert(ruleManager.chcs[i].dstRelation->getId());
         if(ruleManager.chcs[i].isFact){
           auto entry = ruleManager.chcs[i].dstRelation->getId();
-          cout << entry << endl;
+          outs() << entry << endl;
           entries_tmp.insert(entry);
         }else{
           auto tmp_src = ruleManager.chcs[i].srcRelations;
@@ -302,8 +302,50 @@ namespace ufo
       chcG->create_map();
       chcG->init_tree();
       return chcG;
+    }
+
+    ExprVector ssa;
+    void treeToSMT(deep::node *t, int lev = 0, ExprVector srcVars = {})
+    {
+      if (t == nullptr || t->chc_index == -1) { return; }
+      if (lev == 0) // should be the very first call
+      {
+        assert(srcVars.empty());
+        ssa.clear();
       }
 
+      auto & chc = ruleManager.chcs[t->chc_index];
+      auto body = chc.body;
+      body = replaceAll(body, chc.dstVars, srcVars);
+      ExprVector newLocs;
+      for (auto & lv : chc.locVars)
+      {
+        Expr new_name = mkTerm<string>("_loc_" + to_string(varCnt++), m_efac);
+        newLocs.push_back(cloneVar(lv, new_name));
+      }
+      body = replaceAll(body, chc.locVars, newLocs);
+
+      if (t->children.size() == chc.srcVars.size())
+      {
+        for (int i = 0; i < t->children.size(); i++)
+        {
+          ExprVector vars;
+          for (int j = 0; j < chc.srcVars[i].size(); j++)
+          {
+            Expr new_name = mkTerm<string>("_tg_" + to_string(varCnt++), m_efac);
+            vars.push_back(cloneVar(chc.srcVars[i][j], new_name));
+          }
+          body = replaceAll(body, chc.srcVars[i], vars);
+          treeToSMT(t->children[i], lev+1, vars);
+        }
+      }
+      else
+      {
+        for (auto & c : t->children) assert(c->chc_index == -1);
+      }
+      outs() << lev << ": " << t->chc_index  << ": " << body << "\n";
+      ssa.push_back(body);
+    }
 
     void exploreTracesNonLinearTG(int cur_bnd, int bnd, bool skipTerm)
     {
@@ -338,11 +380,18 @@ namespace ufo
         if(trees.size() > 0){
           outs () << "MORE" <<"\n";
         }
-        cout << cur_bnd << endl;
-        cout << "# of terminals trees: " << trees.size() << " terminals tree : " << endl;
+        outs() << cur_bnd << endl;
+        outs() << "# of terminals trees: " << trees.size() << " terminals tree: " << endl;
+
         for (auto t : trees){
-          t->printInOrder();
+          treeToSMT(t->getRoot());
+          auto res = u.isSat(ssa);
+          if (false == res) outs () << "unrolling unsat\n";
+          else if (true == res) outs () << "unrolling sat\n";
+          else outs () << "unknown\n";
         }
+        cur_bnd++;
+        continue;   // GF: skip for now
 
         chcG->print_trees();
 
@@ -462,7 +511,7 @@ namespace ufo
           outs () << "    -> actually explored:  " << tot << ", |unsat prefs| = " << unsat_prefs.size() << "\n";
         }
         for (auto a : toErCHCs) todoCHCs.erase(a);
-        cur_bnd++;
+
       }
       outs () << "Done with TG\n";
     }
@@ -493,11 +542,12 @@ namespace ufo
       NonlinCHCsolver nonlin(ruleManager);
       ruleManager.print();
 
-      nonlin.solveIncrementally();
+      // nonlin.solveIncrementally();
 
-      if (nums.size() > 0) {
-        nonlin.initKeys(nums, lb);
-        nonlin.setInvs(invs);
+      // if (nums.size() > 0)
+      {
+        // nonlin.initKeys(nums, lb);
+        // nonlin.setInvs(invs);
         // todo
         nonlin.exploreTracesNonLinearTG(1, 8, toSkip);
       }

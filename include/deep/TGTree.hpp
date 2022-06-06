@@ -83,6 +83,8 @@ namespace deep {
       root = new node{r};
     }
 
+    node* getRoot(){return root;}
+
     chcTree(node* r){
       root = r;
     }
@@ -130,9 +132,9 @@ namespace deep {
 
     void print_set(set<int> & s){
       for (auto e: s){
-        cout << e << " ";
+        outs() << e << " ";
       }
-      cout << endl;
+      outs() << endl;
     }
 
     void set_non_entry_leaves(vector<node*> l){
@@ -167,11 +169,11 @@ namespace deep {
 
     void printInOrder()  {
       if (empty()) {
-        cout << "tree is emtpy\n";
+        outs() << "tree is emtpy\n";
         return;
       }
       printInOrder(root);
-      cout << endl;
+      outs() << endl;
     }
 
     int numOfNodes() const {
@@ -204,7 +206,7 @@ namespace deep {
 
     void printInOrder(node *t)  {
       if (t == nullptr) { return; }
-      cout << t->element << ":" << t->chc_index  << " ";
+      outs() << t->element << ":" << t->chc_index  << " ";
       for (int i = 0; i < t->children.size(); i++) {
         printInOrder(t->children[i]);
       }
@@ -216,7 +218,7 @@ namespace deep {
       tmp_list.push_back(t);
       while (!tmp_list.empty()) {
         node *current = tmp_list.front();
-        cout << current->element << " ";
+        outs() << current->element << " ";
         for (int i = 0; i < t->children.size(); i++) {
           tmp_list.push_back(current->children[i]);
         }
@@ -263,16 +265,16 @@ namespace deep {
     void print_map(){
       map<int, vector<chc_structure>>::iterator it;
       for (it = ds_map_glob.begin(); it != ds_map_glob.end(); it++){
-        std::cout << it->first;
+        outs() << it->first;
         vector<chc_structure>::iterator it2;
         for (it2 = it->second.begin(); it2 != it->second.end(); it2++) {
           vector<int>::iterator it3;
           for (it3 = it2->srs.begin(); it3 != it2->srs.end(); it3++) {
-            cout << " " << *it3;
+            outs() << " " << *it3;
           }
-          cout << " chc_index: " << it2->chc_index;
+          outs() << " chc_index: " << it2->chc_index;
         }
-        cout << endl;
+        outs() << endl;
       }
     }
 
@@ -423,7 +425,7 @@ namespace deep {
     }
 
     void print_trees(){
-      cout << "# of existing trees: " << trees.size() << " existing tree : " << endl;
+      outs() << "# of existing trees: " << trees.size() << " existing tree : " << endl;
       for (auto t: trees){
         t->printInOrder();
       }

@@ -396,7 +396,7 @@ namespace ufo
       }
     }
 
-    
+
     bool addFailDecl(Expr decl)
     {
       if (failDecl == NULL)
@@ -467,7 +467,7 @@ namespace ufo
         {
             outs () << " locVars: (";
             for(auto &a: hr.locVars) outs() << *a << ", ";
-            outs () << "\n)";
+            outs () << "\b\b)\n";
         }
         //outs() << "\n    locVars: " << * hr.locVars << "\n";
     }
