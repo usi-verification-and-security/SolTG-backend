@@ -86,6 +86,7 @@ namespace ufo
     vector<HornRuleExt> chcs;
     map<Expr, ExprVector> invVars;
     map<Expr, vector<int>> incms;
+    map<Expr, int> expr_id;
     int qCHCNum;  // index of the query in chc
     int total_var_cnt = 0;
     string infile;
@@ -267,7 +268,11 @@ namespace ufo
         {
           if (head->arg(0)->arity() == 2 && !hr.isFact)
           {
-            addFailDecl(head->arg(0)->arg(0));
+            if (!addFailDecl(head->arg(0)->arg(0)))
+            {
+              chcs.pop_back();
+              continue;
+            }
           }
           else
           {
@@ -279,7 +284,12 @@ namespace ufo
         else
         {
           if (!isOpX<FALSE>(head)) body = mk<AND>(body, mk<NEG>(head));
-          addFailDecl(mk<FALSE>(m_efac));
+
+          if (!addFailDecl(mk<FALSE>(m_efac)))
+          {
+            chcs.pop_back();
+            continue;
+          }
           hr.head = mk<FALSE>(m_efac);
           hr.dstRelation = mk<FALSE>(m_efac);
         }
@@ -345,6 +355,7 @@ namespace ufo
           if (chcs[i].srcRelations.size() > 0 ) {
               outgs[chcs[i].srcRelations[0]].push_back(i);
           }
+          expr_id[chcs[i].dstRelation] = i;
       }
 
       for (int i = 0; i < chcs.size(); i++)
@@ -376,10 +387,17 @@ namespace ufo
         outs() << "\n";
         i++;
       }
+      i = 0;
+      outs() << "expr_id \n";
+      for (auto e: expr_id){
+        outs() << i << " first: " << e.first->getId() << " second: " << e.second;
+        outs() << "\n";
+        i++;
+      }
     }
 
     
-    void addFailDecl(Expr decl)
+    bool addFailDecl(Expr decl)
     {
       if (failDecl == NULL)
       {
@@ -389,10 +407,13 @@ namespace ufo
       {
         if (failDecl != decl)
         {
+          //TODO:support
           errs () << "Multiple queries are not supported\n";
-          exit(0);
+          //exit(0);
+          return false;
         }
       }
+      return true;
     }
 
     Expr getPostcondition (int i)

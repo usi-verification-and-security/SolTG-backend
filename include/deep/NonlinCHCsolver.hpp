@@ -267,16 +267,24 @@ namespace ufo
       }
       //find exit id
       set<int>::iterator itr;
+      int exit_index = -1;
+      int i = 0;
       for (itr = dst_set.begin();itr != dst_set.end(); itr++){
         if(src_set.find(*itr) == src_set.end() && entries_tmp.find(*itr) == entries_tmp.end()){
           exit_v = *itr;
+        }
+      }
+      for (int i = 0; i < ruleManager.chcs.size(); i++){
+        if(ruleManager.chcs[i].dstRelation->getId() == exit_v){
+          exit_index = i;
+          break;
         }
       }
       //vector<int> entries(entries_tmp.begin(), entries_tmp.end());
       vector<int> entries; //all leaves end with "-1", because sometimes node can be leaf (isFact=true) and not leaf
       entries.push_back(-1);
 
-      auto chcG = new deep::chcTreeGenerator{entries, exit_v};
+      auto chcG = new deep::chcTreeGenerator{entries, exit_v, exit_index};
       for (int i  = 0; i < ruleManager.chcs.size(); i++) {
         if (!ruleManager.chcs[i].isFact) {
           auto tmp_src = ruleManager.chcs[i].srcRelations;
@@ -284,11 +292,11 @@ namespace ufo
           for (int j = 0; j < tmp_src.size(); j++){
             input_src.push_back(tmp_src[j]->getId());
           }
-          chcG->add_chc_int(input_src, ruleManager.chcs[i].dstRelation->getId());
+          chcG->add_chc_int(i, input_src, ruleManager.chcs[i].dstRelation->getId());
         }else{
           vector<int> input_src;
           input_src.push_back(-1);
-          chcG->add_chc_int(input_src, ruleManager.chcs[i].dstRelation->getId());
+          chcG->add_chc_int(i, input_src, ruleManager.chcs[i].dstRelation->getId());
         }
       }
       chcG->create_map();
@@ -325,8 +333,8 @@ namespace ufo
       while (cur_bnd <= bnd && !todoCHCs.empty())
       {
         outs () << "new iter with cur_bnd = "<< cur_bnd <<"\n";
-
-        auto trees = chcG->getNext();
+        vector<deep::chcTree *> trees;
+        chcG->getNext(trees);
         if(trees.size() > 0){
           outs () << "MORE" <<"\n";
         }
@@ -364,16 +372,11 @@ namespace ufo
             auto t = tree->get_set();
             set<int> apps;
             for (int c : t) {
-              Expr ef;
-              for (auto d: ruleManager.decls) { //ToDo:add Expr ID <=> Expr map struction
-                if (d->getId() == c) {
-                  ef = d;
-                }
-              }
-              auto toFind = ruleManager.outgs[ef];
               if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end() &&
-                  find(toErCHCs.begin(), toErCHCs.end(), c) == toErCHCs.end())
+                  find(toErCHCs.begin(), toErCHCs.end(), c) == toErCHCs.end()) {
                 apps.insert(c);
+                outs() << "FOUND: " << c << "\n" ;
+              }
             }
             if (apps.empty()) continue;  // should not happen
 
@@ -496,7 +499,7 @@ namespace ufo
         nonlin.initKeys(nums, lb);
         nonlin.setInvs(invs);
         // todo
-        nonlin.exploreTracesNonLinearTG(1, 12, toSkip);
+        nonlin.exploreTracesNonLinearTG(1, 8, toSkip);
       }
     }
 };

@@ -1,42 +1,54 @@
 #include <list>
 #include <map>
-#include <set>
 
 using namespace std;
 
 typedef struct {
+  int chc_index;
   vector<int> srs;
   int ds;
+} chc_structure_input;
+
+typedef struct {
+  int chc_index;
+  vector<int> srs;
 } chc_structure;
 
 vector<int> entry_values;
-map<int, vector<vector<int>>> ds_map_glob;
+map<int, vector<chc_structure>> ds_map_glob;
 
 namespace deep {
   class node {
   public:
     int element;
+    int chc_index;
     vector<node *> children;
 
     node(int theElement) {
       element = theElement;
-      //children = nullptr;
+      chc_index = -1;
+    }
+
+    node(int theElement, int theChc_value) {
+      element = theElement;
+      chc_index = theChc_value;
     }
 
     node(int theElement, node *p) {
       element = theElement;
-      //children = nullptr;
     }
 
-    node(int theElement, vector<node *> c) {
+    node(int theElement, int theChc_value, vector<node *> c) {
       element = theElement;
+      chc_index = theChc_value;
       for (int i = 0; i < c.size(); i++) {
         add_child(c[i]);
       }
     }
 
-    node(int theElement, vector<int> c) {
+    node(int theElement, int theChc_value, vector<int> c) {
       element = theElement;
+      chc_index = theChc_value;
       for (int i = 0; i < c.size(); i++) {
         node *n = new node{c[i]};
         add_child(n);
@@ -47,11 +59,12 @@ namespace deep {
 
     static node* clone(node* n){
       int tmp_e = n->element;
+      int tmp_i = n->chc_index;
       vector<node *> new_chileds;
       for (auto c : n->children){
         new_chileds.push_back(clone(c));
       }
-      node* out = new node{tmp_e, new_chileds};
+      node* out = new node{tmp_e, tmp_i, new_chileds};
       return out;
     }
 
@@ -74,41 +87,18 @@ namespace deep {
       root = r;
     }
 
-    chcTree(int parent, vector<int> childrens){
+    chcTree(int parent, int chc_index_value, chc_structure childrens){
       vector<node *> tmp_nodes;
-      for (auto c : childrens){
+      for (auto c : childrens.srs){
         auto tmp = new node{c};
         if (!contains_entry(c)){
           non_entry_leaves.push_back(tmp);
         }
         tmp_nodes.push_back(tmp);
       }
-
-      root = new node{parent, childrens};
+      root = new node{parent, chc_index_value, childrens.srs};
     }
 
-    set<int> get_set(){
-      set<int> out;
-      out.insert(root->element);
-      for(auto e: root->children){
-        get_set(out, *e);
-      }
-      return out;
-    }
-
-    void get_set(set<int> & out, node & n){
-      out.insert(n.element);
-      for(auto  e: n.children){
-        get_set(out, *e);
-      }
-    }
-
-    void print_set(set<int> & s){
-      for (auto e: s){
-        cout << e << " ";
-      }
-      cout << endl;
-    }
 
     ~chcTree() {
       makeEmpty();
@@ -120,6 +110,29 @@ namespace deep {
       auto n_chcTree = new chcTree(new_root);
       n_chcTree->set_non_entry_leaves(n_leaves);
       return n_chcTree;
+    }
+
+    set<int> get_set(){
+      set<int> out;
+      out.insert(root->chc_index);
+      for(auto e: root->children){
+        get_set(out, *e);
+      }
+      return out;
+    }
+
+    void get_set(set<int> & out, node & n){
+      out.insert(n.chc_index);
+      for(auto  e: n.children){
+        get_set(out, *e);
+      }
+    }
+
+    void print_set(set<int> & s){
+      for (auto e: s){
+        cout << e << " ";
+      }
+      cout << endl;
     }
 
     void set_non_entry_leaves(vector<node*> l){
@@ -191,7 +204,7 @@ namespace deep {
 
     void printInOrder(node *t)  {
       if (t == nullptr) { return; }
-      cout << t->element << " ";
+      cout << t->element << ":" << t->chc_index  << " ";
       for (int i = 0; i < t->children.size(); i++) {
         printInOrder(t->children[i]);
       }
@@ -248,35 +261,37 @@ namespace deep {
     }
 
     void print_map(){
-      map<int, vector<vector<int>>>::iterator it;
+      map<int, vector<chc_structure>>::iterator it;
       for (it = ds_map_glob.begin(); it != ds_map_glob.end(); it++){
         std::cout << it->first;
-        vector<vector<int>>::iterator it2;
+        vector<chc_structure>::iterator it2;
         for (it2 = it->second.begin(); it2 != it->second.end(); it2++) {
           vector<int>::iterator it3;
-          for (it3 = it2->begin(); it3 != it2->end(); it3++) {
+          for (it3 = it2->srs.begin(); it3 != it2->srs.end(); it3++) {
             cout << " " << *it3;
           }
+          cout << " chc_index: " << it2->chc_index;
         }
         cout << endl;
       }
     }
 
-    vector<vector<vector<int>>> get_all_permutations(){
-      vector<vector<vector<int>>> oc;
-      vector<vector<int>> out;
+    vector<vector<chc_structure>> get_all_permutations(){
+      vector<vector<chc_structure>> oc;
+      vector<chc_structure> out;
       for (int i = 0; i < non_entry_leaves.size(); i++){
         vector<int> tmp;
-        out.push_back(tmp);
+        chc_structure tmp_s = *new chc_structure{-1, tmp};
+        out.push_back(tmp_s);
       }
       get_all_permutations(0, out, oc);
       return oc;
     }
 
-    void get_all_permutations(int index, vector<vector<int>> &out,
-                              vector<vector<vector<int>>> &out_collection){
+    void get_all_permutations(int index, vector<chc_structure> &out,
+                              vector<vector<chc_structure>> &out_collection){
       if (index >= non_entry_leaves.size()){
-        vector<vector<int>> tmp;
+        vector<chc_structure> tmp;
         for (int i = 0; i < out.size(); i++) {
           //tmp.push_back(&out[i]);
           tmp.push_back(out[i]);
@@ -287,7 +302,7 @@ namespace deep {
       }
       int el = non_entry_leaves[index]->element;
       int sz = ds_map_glob.find(el)->second.size();
-      vector<vector<int>>::iterator it2;
+      vector<chc_structure>::iterator it2;
       //for (int i = 0; i < sz; i++) {
       for (it2 = ds_map_glob.find(el)->second.begin(); it2 != ds_map_glob.find(el)->second.end(); it2++) {
         // update current out vector
@@ -305,12 +320,12 @@ namespace deep {
       return result;
     }
 
-    void extend_non_entry_leaves(vector<vector<int>> new_mutations){
+    void extend_non_entry_leaves(vector<chc_structure> new_mutations){
       vector<node *> new_non_entry_leaves;
       for (int i = 0; i < non_entry_leaves.size(); i++){
         auto new_mutation = new_mutations[i];
         vector<node *> tmp_node_list;
-        for (auto nm: new_mutation){
+        for (auto nm: new_mutation.srs){
           auto n_tmp_node = new node{nm};
           if (!contains_entry(nm)){
             new_non_entry_leaves.push_back(n_tmp_node);
@@ -318,6 +333,7 @@ namespace deep {
           tmp_node_list.push_back(n_tmp_node);
         }
         non_entry_leaves[i]->children = tmp_node_list;
+        non_entry_leaves[i]->chc_index = new_mutation.chc_index;
       }
       non_entry_leaves = new_non_entry_leaves;
     }
@@ -328,14 +344,16 @@ namespace deep {
   private:
     vector<int> entry;
     int exit_v;
-    vector<chc_structure> chc_int;
+    int exit_index;
+    vector<chc_structure_input> chc_int;
     vector<chcTree *> trees;
     //vector<chcTree *> fullTrees;
-    map<int, vector<vector<int>>> ds_map;
+    map<int, vector<chc_structure>> ds_map;
   public:
-    chcTreeGenerator(vector<int> ep, int ex){
+    chcTreeGenerator(vector<int> ep, int ex, int exit_index_value){
       entry = ep;
       exit_v = ex;
+      exit_index = exit_index_value;
       entry_values = ep;
     }
 
@@ -360,29 +378,21 @@ namespace deep {
       return first == second;
     }
 
-    void add_chc_int(vector<int> srs_input, int dst_input){
-      //check if already exist
-      for (int i = 0; i < chc_int.size(); i++ ){
-        if(dst_input == chc_int[i].ds){
-          bool flag = false;
-          for(int j = 0; j < chc_int[i].srs.size(); j++){
-            if (isV_Equal(chc_int[i].srs, srs_input)){
-              return;
-            }
-          }
-        }
-      }
-      chc_structure tmp_s = *new chc_structure{srs_input, dst_input};
+    void add_chc_int(int chc_index, vector<int> srs_input, int dst_input){
+      chc_structure_input tmp_s = *new chc_structure_input{chc_index, srs_input, dst_input};
       chc_int.push_back(tmp_s);
     }
 
     void create_map(){
       for(auto chc: chc_int){
         if(ds_map.count(chc.ds) > 0){
-          ds_map.find(chc.ds)->second.push_back(chc.srs);
-          ds_map_glob.find(chc.ds)->second.push_back(chc.srs);
+          //should not happened
+          chc_structure tmp_s = *new chc_structure{chc.chc_index, chc.srs};
+          ds_map.find(chc.ds)->second.push_back(tmp_s);
+          ds_map_glob.find(chc.ds)->second.push_back(tmp_s);
         }else{
-          vector<vector<int>> tmp{chc.srs};
+          chc_structure tmp_s = *new chc_structure{chc.chc_index, chc.srs};
+          vector<chc_structure> tmp{tmp_s};
           ds_map.insert({chc.ds, tmp});
           ds_map_glob.insert({chc.ds, tmp});
 
@@ -394,17 +404,17 @@ namespace deep {
     void init_tree(){
       auto exit_points = ds_map.find(exit_v);
       for (auto items : exit_points->second){
-        chcTree *t = new chcTree(exit_v, items);
+        chcTree *t = new chcTree(exit_v, exit_index, items);
         //ToDo: check tree if it if "full" and  add to corresponding list
         trees.push_back(t);
       }
       //chcTree t = new chcTree
     }
 
-    bool is_only_entries(vector<vector<int>> mutation){
+    bool is_only_entries(vector<chc_structure> mutation){
       for (int i = 0; i < mutation.size(); i++){
-        for (int j = 0; j < mutation[i].size(); j++){
-          if (!contains_entry(mutation[i][j])){
+        for (int j = 0; j < mutation[i].srs.size(); j++){
+          if (!contains_entry(mutation[i].srs[j])){
             return false;
           }
         }
@@ -416,16 +426,13 @@ namespace deep {
       cout << "# of existing trees: " << trees.size() << " existing tree : " << endl;
       for (auto t: trees){
         t->printInOrder();
-        auto tmp = t->get_set();
-        t->print_set(tmp);
       }
     }
 
-    vector<chcTree *> getNext(){
+    void getNext(vector<chcTree *>  &complete_trees){
       vector<chcTree *> new_trees;
-      vector<chcTree *> complete_trees;
       for (int i = 0; i < trees.size(); i++){
-        vector<vector<vector<int>>> all_permutations = trees[i]->get_all_permutations();
+        vector<vector<chc_structure>> all_permutations = trees[i]->get_all_permutations();
         for (auto ap : all_permutations){
           //clone tree
           auto nt = chcTree::clone(trees[i]);
@@ -441,7 +448,6 @@ namespace deep {
         }
       }
       trees = new_trees;
-      return complete_trees;
     }
   };
 
