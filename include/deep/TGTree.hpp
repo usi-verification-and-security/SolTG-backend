@@ -123,6 +123,14 @@ namespace deep {
       return out;
     }
 
+    vector<int> get_non_entry_leaves(){
+      vector<int> tmp;
+      for (auto n: non_entry_leaves){
+        tmp.push_back(n->element);
+      }
+      return tmp;
+    }
+
     void get_set(set<int> & out, node & n){
       out.insert(n.chc_index);
       for(auto  e: n.children){
@@ -340,6 +348,13 @@ namespace deep {
       non_entry_leaves = new_non_entry_leaves;
     }
 
+
+    void extend_by_terminals_nodes(map<int, node> &ds_term_node){
+      for (auto n: non_entry_leaves){
+        n = &ds_term_node.find(n->element)->second;
+      }
+    }
+
   };
 
   class chcTreeGenerator{
@@ -351,6 +366,9 @@ namespace deep {
     vector<chcTree *> trees;
     //vector<chcTree *> fullTrees;
     map<int, vector<chc_structure>> ds_map;
+    map<int, bool> ds_term; //store int value, which are terminals only (true) or cycle, branches (false)
+    map<int, node> ds_term_node;
+
   public:
     chcTreeGenerator(vector<int> ep, int ex, int exit_index_value){
       entry = ep;
@@ -385,6 +403,67 @@ namespace deep {
       chc_int.push_back(tmp_s);
     }
 
+    bool is_branch_or_cycle(int x, vector<int> &history){
+      if (ds_term.find(x) != ds_term.end()){
+        return ds_term.find(x)->second;
+      }
+      bool result = true;
+      history.push_back(x);
+      for (auto e: ds_map.find(x)->second[0].srs){
+        if (e == -1){
+          continue;
+        }
+        for (auto h: history){
+          if (e == h){
+            history.pop_back();
+            return false;
+          }
+        }
+        if (!is_branch_or_cycle(e, history)){
+          history.pop_back();
+          return false;
+        }
+      }
+      history.pop_back();
+      return true;
+    }
+
+    bool is_branch_or_cycle(int x){
+      if (ds_term.find(x) != ds_term.end()){
+        return ds_term.find(x)->second;
+      }
+      bool result = true;
+      vector<int> history;
+      history.push_back(x);
+      for (auto e: ds_map.find(x)->second[0].srs){
+        if (e == -1){
+          continue;
+        }
+        if (!is_branch_or_cycle(e, history)){
+          return false;
+        }
+      }
+      return true;
+    }
+
+    void init_termination_tree(int x, node &n){
+      for (auto e: ds_map.find(x)->second){
+        n.chc_index = e.chc_index;
+        for (int k: e.srs){
+          if (k != -1){
+            node tmp{k};
+            init_termination_tree(k, tmp);
+            n.children.push_back(&tmp);
+          }else{
+            node tmp{-1};
+            n.children.push_back(&tmp);
+          }
+        }
+      }
+    }
+
+
+
     void create_map(){
       for(auto chc: chc_int){
         if(ds_map.count(chc.ds) > 0){
@@ -401,6 +480,37 @@ namespace deep {
         }
       }
       //ds_map_glob = ds_map;
+      //init ds_term
+      map<int, vector<chc_structure>>::iterator it;
+      for (it = ds_map.begin(); it != ds_map.end(); it++)
+      {
+        if (it->second.size() > 1){
+          ds_term.insert({it->first, false});
+        }
+      }
+      for (it = ds_map.begin(); it != ds_map.end(); it++)
+      {
+        if (ds_term.find(it->first) == ds_term.end()){
+          ds_term.insert({it->first, is_branch_or_cycle(it->first)});
+        }
+      }
+      outs() << "ds_map: \n";
+      map<int, bool>::iterator it2;
+      for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)
+      {
+        outs() << it2->first << " : " << it2->second << "\n";
+      }
+
+      for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)
+      {
+        if (it2->second){
+          node tmp{it2->first};
+          //ToDo: add chc_index
+          init_termination_tree(it2->first, tmp);
+          ds_term_node.insert({it2->first, tmp});
+        }
+      }
+
     }
 
     void init_tree(){
@@ -413,13 +523,21 @@ namespace deep {
       //chcTree t = new chcTree
     }
 
-    bool is_only_entries(vector<chc_structure> mutation){
+    bool is_only_entries(vector<chc_structure> mutation) {
       for (int i = 0; i < mutation.size(); i++){
         for (int j = 0; j < mutation[i].srs.size(); j++){
           if (!contains_entry(mutation[i].srs[j])){
             return false;
           }
         }
+      }
+      return true;
+    }
+
+    bool is_future_terminals(vector<int> leaves) {
+      for (auto l: leaves){
+        if (!ds_term.find(l)->second)
+          return false;
       }
       return true;
     }
@@ -440,13 +558,20 @@ namespace deep {
           auto nt = chcTree::clone(trees[i]);
           //add values from ap to tree
           nt->extend_non_entry_leaves(ap);
-          if (!is_only_entries(ap)){
+          if (is_future_terminals(nt->get_non_entry_leaves())){
+            outs() << "WOW!\n";
+            nt->extend_by_terminals_nodes(ds_term_node);
+            complete_trees.push_back(nt);
+            continue;
+          }
+          if (!is_only_entries(ap)) {
             // add tree to complete_trees
             new_trees.push_back(nt);
-          }else{
-            //add tree to new_trees
-            complete_trees.push_back(nt);
+            continue;
           }
+          //add tree to new_trees
+          complete_trees.push_back(nt);
+
         }
       }
       trees = new_trees;

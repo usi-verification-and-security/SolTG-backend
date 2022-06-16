@@ -283,6 +283,14 @@ namespace ufo
       //vector<int> entries(entries_tmp.begin(), entries_tmp.end());
       vector<int> entries; //all leaves end with "-1", because sometimes node can be leaf (isFact=true) and not leaf
       entries.push_back(-1);
+      for (int i  = 0; i < ruleManager.chcs.size(); i++) {
+        auto tmp_src = ruleManager.chcs[i].srcRelations;
+        for (int j = 0; j < tmp_src.size(); j++){
+          if (dst_set.find(tmp_src[j]->getId()) == dst_set.end()){
+            entries.push_back(tmp_src[j]->getId());
+          }
+        }
+      }
 
       auto chcG = new deep::chcTreeGenerator{entries, exit_v, exit_index};
       for (int i  = 0; i < ruleManager.chcs.size(); i++) {
@@ -387,7 +395,23 @@ namespace ufo
           treeToSMT(t->getRoot());
           auto res = u.isSat(ssa);
           if (false == res) outs () << "unrolling unsat\n";
-          else if (true == res) outs () << "unrolling sat\n";
+          else if (true == res) {
+            //ToDo: What should be done here? How to generate data and remove from ToDos
+            outs () << "unrolling sat\n";
+            auto el = t->get_set();
+            set<int> apps;
+            for (int c : el) {
+              if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
+                apps.insert(c);
+                outs() << "FOUND: " << c << "\n" ;
+                todoCHCs.erase(c);
+                if (todoCHCs.empty()){
+                  outs () << "ALL Branches are covered: DONE\n";
+                  //exit(0);
+                }
+              }
+            }
+          }
           else outs () << "unknown\n";
         }
         cur_bnd++;
@@ -549,7 +573,7 @@ namespace ufo
         // nonlin.initKeys(nums, lb);
         // nonlin.setInvs(invs);
         // todo
-        nonlin.exploreTracesNonLinearTG(1, 8, toSkip);
+        nonlin.exploreTracesNonLinearTG(1, 25, toSkip);
       }
     }
 };
