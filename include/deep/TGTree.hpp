@@ -504,8 +504,8 @@ namespace deep {
       for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)
       {
         if (it2->second){
-          node tmp{it2->first};
-          //ToDo: add chc_index
+          int chc_ind = ds_map.find(it2->first)->second[0].chc_index;
+          node tmp{it2->first, chc_ind};
           init_termination_tree(it2->first, tmp);
           ds_term_node.insert({it2->first, tmp});
         }
