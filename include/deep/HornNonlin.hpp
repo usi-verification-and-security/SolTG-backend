@@ -227,6 +227,81 @@ namespace ufo
       return true;
     }
 
+    bool hasOnlyInduct(Expr rel, vector<int>& indexes)
+    {
+      int num = 0;
+      for (int i = 0; i < chcs.size(); i++)
+        if (chcs[i].dstRelation == rel)
+        {
+          if (chcs[i].isFact)
+            return false;
+          bool isInd = false;
+          for (auto & c : chcs[i].srcRelations)
+          {
+            if (c == rel)
+            {
+              isInd = true;
+              break;
+            }
+          }
+          if (isInd) indexes.push_back(i);
+          else return false;
+        }
+      return indexes.size() > 0;
+    }
+
+    void computeIncms()
+    {
+      incms.clear();
+      for (int i = 0; i < chcs.size(); i++)
+        incms[chcs[i].dstRelation].push_back(i);
+    }
+
+    void prune ()
+    {
+      int sz = decls.size();
+      set<int> toSkip;
+      computeIncms();
+
+      for (auto it = decls.begin(); it != decls.end(); )
+      {
+        Expr d = *it;
+
+        vector<int> indexes;
+        bool toDel = hasOnlyInduct(d->left(), indexes);
+        for (int i : indexes) toSkip.insert(i);
+
+        if (toDel || incms[d->left()].empty())
+        {
+          toDel = true;
+          for (int i = 0; i < chcs.size(); i++)
+          {
+            bool isInBody = false;
+            for (auto & s : chcs[i].srcRelations)
+            {
+              if (s == d->left())
+              {
+                isInBody = true;
+                break;
+              }
+            }
+            if (isInBody)
+            {
+              toSkip.insert(i);
+            }
+          }
+        }
+
+        if (toDel) it = decls.erase(it);
+        else ++it;
+      }
+      for (auto rit = toSkip.rbegin(); rit != toSkip.rend(); rit++)
+        chcs.erase(chcs.begin() + *rit);
+
+      if (sz == decls.size()) return;
+      else prune();
+    }
+
     void parse(string smt)
     {
       infile = smt;
@@ -358,8 +433,7 @@ namespace ufo
           expr_id[chcs[i].dstRelation] = i;
       }
 
-      for (int i = 0; i < chcs.size(); i++)
-        incms[chcs[i].dstRelation].push_back(i);
+      prune();
     }
 
     void print_parse_results(){
@@ -441,7 +515,7 @@ namespace ufo
     {
         if (hr.isFact) outs() << "  INIT:\n";
         if (hr.isInductive) outs() << "  TRANSITION RELATION:\n";
-        if (hr.isQuery) outs() << "  BAD:\n";
+        if (hr.isQuery) outs() << "  isInBody:\n";
 
         outs () << "    ";
 
