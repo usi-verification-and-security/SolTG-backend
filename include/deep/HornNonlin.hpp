@@ -159,20 +159,16 @@ namespace ufo
         decls.insert(a);
         for (int i = 1; i < a->arity()-1; i++)
         {
+
           Expr new_name = mkTerm<string> (varname + to_string(total_var_cnt), m_efac);
           total_var_cnt++;
-          Expr var;
-          if (isOpX<INT_TY> (a->arg(i)))
-            var = bind::intConst(new_name);
-          else if (isOpX<REAL_TY> (a->arg(i)))
-            var = bind::realConst(new_name);
-          else if (isOpX<BOOL_TY> (a->arg(i)))
-            var = bind::boolConst(new_name);
-          else if (isOpX<ARRAY_TY> (a->arg(i))) // GF: currently support only arrays over Ints
+          Expr arg = a->arg(i);
+          if (!isOpX<INT_TY> (arg) && !isOpX<REAL_TY> (arg) && !isOpX<BOOL_TY> (arg) && !isOpX<ARRAY_TY> (arg))
           {
-            var = bind::mkConst(new_name, mk<ARRAY_TY>
-                  (mk<INT_TY> (m_efac), mk<INT_TY> (m_efac)));
+            errs() << "Argument #" << i << " of " << a << " is not supported\n";
+            exit(1);
           }
+          Expr var = fapp (constDecl (new_name, a->arg(i)));
           invVars[a->arg(0)].push_back(var);
         }
       }
