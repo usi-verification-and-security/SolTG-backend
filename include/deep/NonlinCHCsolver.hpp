@@ -280,6 +280,7 @@ namespace ufo
           break;
         }
       }
+      outs() << "Exit index: " << exit_index << " : id" << exit_v << "\n";
       //vector<int> entries(entries_tmp.begin(), entries_tmp.end());
       vector<int> entries; //all leaves end with "-1", because sometimes node can be leaf (isFact=true) and not leaf
       entries.push_back(-1);
@@ -357,6 +358,7 @@ namespace ufo
 
     void exploreTracesNonLinearTG(int cur_bnd, int bnd, bool skipTerm)
     {
+      int number_of_found_branchs = 0;
       set<int> todoCHCs;
       auto chcG = initChcTree();
 
@@ -403,8 +405,13 @@ namespace ufo
             for (int c : el) {
               if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
                 apps.insert(c);
-                outs() << "FOUND: " << c << "\n" ;
+                number_of_found_branchs++;
+                outs() << "FOUND: " << c << " # number_of_found_branches: " << number_of_found_branchs <<"\n" ;
                 todoCHCs.erase(c);
+                for (int tmp_x : el) {
+                  outs() << tmp_x << " ";
+                }
+                outs() <<  "\n";
                 if (todoCHCs.empty()){
                   outs () << "ALL Branches are covered: DONE\n";
                   //exit(0);
@@ -535,6 +542,9 @@ namespace ufo
           outs () << "    -> actually explored:  " << tot << ", |unsat prefs| = " << unsat_prefs.size() << "\n";
         }
         for (auto a : toErCHCs) todoCHCs.erase(a);
+        for (auto t : trees){
+          t->deleteTree();
+        }
 
       }
       outs () << "Done with TG\n";

@@ -55,6 +55,12 @@ namespace deep {
       }
     }
 
+//    ~node(){
+//      for(auto v: children){
+//        delete v;
+//      }
+//    }
+
     void add_child(node *child) { children.push_back(child); }
 
     static node* clone(node* n){
@@ -102,8 +108,24 @@ namespace deep {
     }
 
 
+
     ~chcTree() {
-      makeEmpty();
+      for (auto c: non_entry_leaves){
+        delete c;
+      }
+      for(auto v: root->children){
+        delete v;
+      }
+      delete root;
+
+    }
+
+    void deleteTree() {
+      if (root == NULL) return;
+      for(auto v: root->children){
+        delete v;
+      }
+      free(root);
     }
 
     static chcTree* clone(chcTree *t){
@@ -559,7 +581,7 @@ namespace deep {
           //add values from ap to tree
           nt->extend_non_entry_leaves(ap);
           if (is_future_terminals(nt->get_non_entry_leaves())){
-            outs() << "WOW!\n";
+            outs() << "2\n";
             nt->extend_by_terminals_nodes(ds_term_node);
             complete_trees.push_back(nt);
             continue;
@@ -567,12 +589,16 @@ namespace deep {
           if (!is_only_entries(ap)) {
             // add tree to complete_trees
             new_trees.push_back(nt);
+            outs() << "1\n";
             continue;
           }
           //add tree to new_trees
           complete_trees.push_back(nt);
 
         }
+      }
+      for (auto t: trees){
+        t->deleteTree();
       }
       trees = new_trees;
     }
