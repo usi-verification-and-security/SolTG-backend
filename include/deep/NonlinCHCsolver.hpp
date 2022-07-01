@@ -575,6 +575,10 @@ namespace ufo
       ruleManager.print_parse_results();
       NonlinCHCsolver nonlin(ruleManager);
       ruleManager.print();
+      if (ruleManager.index_cycle_chc == -1){
+        outs() << "no function found\n";
+        return;
+      }
 
       // nonlin.solveIncrementally();
 

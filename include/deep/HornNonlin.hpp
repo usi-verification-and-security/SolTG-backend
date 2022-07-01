@@ -84,6 +84,7 @@ namespace ufo
     ExprSet decls;
     Expr failDecl;
     vector<HornRuleExt> chcs;
+    int index_cycle_chc;
     map<Expr, ExprVector> invVars;
     map<Expr, vector<int>> incms;
     map<Expr, int> expr_id;
@@ -365,7 +366,8 @@ namespace ufo
           hr.dstRelation = mk<FALSE>(m_efac);
         }
 
-        hr.isQuery = (hr.dstRelation == failDecl);
+        //hr.isQuery = (hr.dstRelation == failDecl);
+        hr.isQuery = 0;
         hr.isInductive = (hr.srcRelations.size() == 1 && hr.srcRelations[0] == hr.dstRelation);
         if (hr.isQuery) qCHCNum = chcs.size() - 1;
 
@@ -430,6 +432,28 @@ namespace ufo
       }
 
       prune();
+
+      index_cycle_chc = -1;
+      // find: index_cycle_chc
+      for (int i = 0; i < chcs.size(); i++) {
+        for(auto srs: chcs[i].srcRelations){
+          if(srs->getId() == chcs[i].dstRelation->getId()){
+            index_cycle_chc = i;
+          }
+        }
+      }
+      if (index_cycle_chc == -1){
+        // try to find first cycle ToDo: need to recheck
+        set<int> tmp_srs;
+        for (int i = 0; i < chcs.size(); i++) {
+          if (tmp_srs.find(chcs[i].dstRelation->getId()) != tmp_srs.end()){
+            index_cycle_chc = i;
+          }
+          for(auto srs: chcs[i].srcRelations){
+            tmp_srs.insert(srs->getId());
+          }
+        }
+      }
     }
 
     void print_parse_results(){
@@ -439,8 +463,10 @@ namespace ufo
         for (int j = 0; j < chcs[i].srcRelations.size(); j++) {
           outs() << " " <<chcs[i].srcRelations[j]->getId();
         }
-        outs() << " dst: " << chcs[i].dstRelation->getId() << "\n";
+        outs() << " dst: " << chcs[i].dstRelation->getId() << " : "
+        << chcs[i].dstRelation << " isQuery : " << chcs[i].isQuery << "\n";
       }
+      outs() << "index_cycle_chc : " << index_cycle_chc << "\n";
       int i = 0;
       outs() << "decls \n";
       for (auto d: decls){
@@ -450,7 +476,7 @@ namespace ufo
       i = 0;
       outs() << "outgs \n";
       for (auto d: outgs){
-        outs() << i << " first: " << d.first->getId() << " second: ";
+        outs() << i << " first: " << d.first->getId() << " : " << d.first << " second: ";
         for (auto s: d.second){
           outs() << s << " ";
         }
