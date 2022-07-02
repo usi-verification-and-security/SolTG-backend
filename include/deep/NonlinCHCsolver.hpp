@@ -352,35 +352,45 @@ namespace ufo
       {
         for (auto & c : t->children) assert(c->chc_index == -1);
       }
-      outs() << lev << ": " << t->chc_index  << ": " << body << "\n";
+      //outs() << lev << ": " << t->chc_index  << ": " << body << "\n";
       ssa.push_back(body);
     }
 
-    void exploreTracesNonLinearTG(int cur_bnd, int bnd, bool skipTerm)
+    // TODO: skeleton of the new implementation
+    void exploreTracesNonLinearTG(int bnd)
+    {
+      set<int> todoCHCs;
+
+      // TODO: smarter
+      for (int i = 0; i < ruleManager.chcs.size(); i++)
+        todoCHCs.insert(i);
+
+      for (int cur_bnd = 1; cur_bnd <= bnd && !todoCHCs.empty(); cur_bnd++)
+      {
+        outs () << "new iter with cur_bnd = "<< cur_bnd <<"\n";
+        ruleManager.mkNewQuery(cur_bnd);
+//        ruleManager.print();
+
+        // GIVEN: at this point, there is only one query, and it is re-constructed in each iteration
+        /* TODO:
+          1. restart tree generation (up to some depth, e.g., 10)
+          2. enumerate all trees and call `isSat`
+          3. for all tree that gave `SAT`, extract tests, and remove CHCs from `todoCHCs`
+        */
+
+        ruleManager.chcs.pop_back(); // important: kill the query created in `mkNewQuery`
+      }
+    }
+
+    void exploreTracesNonLinearTGOld(int cur_bnd, int bnd, bool skipTerm)
     {
       int number_of_found_branchs = 0;
       set<int> todoCHCs;
       auto chcG = initChcTree();
 
       //ToDo: find out how to get exit and entry values
-      if (ruleManager.outgs.size() > 0) {
-        //entry = ruleManager.outgs[0].
-      }
-
-      // first, get points of control-flow divergence
-      for (auto & d : ruleManager.decls)
-        if (ruleManager.outgs[d->left()].size() > 1)
-          //ToDo add chc_ints: void add_chc_int(vector<int> srs_input, int dst_input)
-          //chcG->add_chc_int(srcs, dst);
-          for (auto & o : ruleManager.outgs[d->left()])
-            todoCHCs.insert(o);
-
-      // if the code is straight, just add queries
-      if (todoCHCs.empty())
-        for (int i = 0; i < ruleManager.chcs.size(); i++)
-          if (ruleManager.chcs[i].isQuery)
-            todoCHCs.insert(i);
-
+      for (int i = 0; i < ruleManager.chcs.size(); i++)
+        todoCHCs.insert(i);
 
       while (cur_bnd <= bnd && !todoCHCs.empty())
       {
@@ -571,15 +581,14 @@ namespace ufo
       EZ3 z3(m_efac);
       ExprMap invs;
       CHCs ruleManager(m_efac, z3);
-      ruleManager.parse(smt);
-      ruleManager.print_parse_results();
-      NonlinCHCsolver nonlin(ruleManager);
-      ruleManager.print();
-      if (ruleManager.index_cycle_chc == -1){
+      ruleManager.parse(smt, true);
+      // ruleManager.print_parse_results();
+      if (ruleManager.index_cycle_chc == -1 || ruleManager.index_fact_chc == -1){
         outs() << "no function found\n";
         return;
       }
 
+      NonlinCHCsolver nonlin(ruleManager);
       // nonlin.solveIncrementally();
 
       // if (nums.size() > 0)
@@ -587,7 +596,7 @@ namespace ufo
         // nonlin.initKeys(nums, lb);
         // nonlin.setInvs(invs);
         // todo
-        nonlin.exploreTracesNonLinearTG(1, 25, toSkip);
+        nonlin.exploreTracesNonLinearTG(25);
       }
     }
 };
