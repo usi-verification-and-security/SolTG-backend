@@ -356,25 +356,110 @@ namespace ufo
       ssa.push_back(body);
     }
 
+
+    void fillTodos(set<int> & todoCHCs)
+    {
+      // TODO: smarter
+      // get points of control-flow divergence
+      for (int i = 0; i < ruleManager.chcs.size(); i++){
+        std::ostringstream address;
+        auto name = ruleManager.chcs[i].dstRelation;
+        address << name;
+        string to_check = address.str();
+        if (to_check.find("if_true") != std::string::npos){
+          todoCHCs.insert(i);
+        }
+        if (to_check.find("if_false") != std::string::npos){
+          todoCHCs.insert(i);
+        }
+        //ToDo: update only for public functions
+//        if (to_check.find("_function_") != std::string::npos && to_check.find("block_") != std::string::npos){
+//          todoCHCs.insert(i);
+//        }
+//        if (to_check.find("if_header") != std::string::npos){
+//          todoCHCs.insert(i);
+//        }
+      }
+
+      // if the code is straight, just add queries
+      if (todoCHCs.empty())
+        for (int i = 0; i < ruleManager.chcs.size(); i++)
+          if (ruleManager.chcs[i].isQuery)
+            todoCHCs.insert(i);
+
+      outs() << "TODOs : \n";
+      for(auto tg: todoCHCs){
+        outs() << tg << " : " <<  ruleManager.chcs[tg].dstRelation << "\n";
+      }
+    }
+
+
     // TODO: skeleton of the new implementation
     void exploreTracesNonLinearTG(int bnd)
     {
       set<int> todoCHCs;
+      int number_of_found_branchs = 0;
 
-      // TODO: smarter
-      for (int i = 0; i < ruleManager.chcs.size(); i++)
-        todoCHCs.insert(i);
+      fillTodos(todoCHCs);
 
       for (int cur_bnd = 1; cur_bnd <= bnd && !todoCHCs.empty(); cur_bnd++)
       {
         outs () << "new iter with cur_bnd = "<< cur_bnd <<"\n";
         ruleManager.mkNewQuery(cur_bnd);
-//        ruleManager.print();
+        //ruleManager.print();
+        ruleManager.print_parse_results();
+
+        // 1. restart tree generation (up to some depth, e.g., 10)
+        auto chcG = initChcTree();
+        int tree_depth = 10;
+        for (int depth = 1; depth <= tree_depth; depth++){
+          // 2. enumerate all trees and call `isSat`
+          vector<deep::chcTree *> trees;
+          chcG->getNext(trees);
+          outs() << "trees size : " << trees.size() << "\n";
+          for (auto t : trees){
+            auto el = t->get_set();
+            bool is_potential_tree_with_todo = false;
+            for (int c : el) {
+              if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
+                is_potential_tree_with_todo = true;
+              }
+            }
+            if (!is_potential_tree_with_todo)
+              continue; //goto next tree, t doesn't contain todoCHCs
+            treeToSMT(t->getRoot());
+            auto res = u.isSat(ssa);
+            if (false == res) outs () << "unrolling unsat\n";
+            else if (true == res) {
+              outs () << "unrolling sat\n";
+              for (int c : el) {
+                if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
+                  number_of_found_branchs++;
+                  outs() << "FOUND: " << c << " # number_of_found_branches: " << number_of_found_branchs <<"\n" ;
+                  outs() << "FOUND: " << ruleManager.chcs[c].dstRelation << "\n";
+                  todoCHCs.erase(c); // remove CHCs from `todoCHCs`
+                  for (int tmp_x : el) {
+                    outs() << tmp_x << " ";
+                  }
+                  outs() <<  "\n";
+                  //ToDo: print / generate test here
+                  if (todoCHCs.empty()){
+                    outs () << "ALL Branches are covered: DONE\n";
+                    return;
+                  }
+                }
+              }
+            }
+            else outs () << "unknown\n";
+          }
+          for (auto t : trees){
+            t->deleteTree();
+          }
+        }
+        chcG->clear();
 
         // GIVEN: at this point, there is only one query, and it is re-constructed in each iteration
         /* TODO:
-          1. restart tree generation (up to some depth, e.g., 10)
-          2. enumerate all trees and call `isSat`
           3. for all tree that gave `SAT`, extract tests, and remove CHCs from `todoCHCs`
         */
 

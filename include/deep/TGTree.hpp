@@ -399,6 +399,17 @@ namespace deep {
       entry_values = ep;
     }
 
+    void clear(){
+      entry = vector<int>();
+      exit_v = -1;
+      exit_index = -1;
+      chc_int = vector<chc_structure_input>();
+      trees = vector<chcTree *>();
+      ds_map.clear();
+      ds_term.clear();
+      ds_term_node.clear();
+    }
+
     bool contains_entry(const int & elem){
       bool result = false;
       if( find(entry.begin(), entry.end(), elem) != entry.end() )
@@ -581,7 +592,7 @@ namespace deep {
           //add values from ap to tree
           nt->extend_non_entry_leaves(ap);
           if (is_future_terminals(nt->get_non_entry_leaves())){
-            outs() << "2\n";
+            //outs() << "2\n";
             nt->extend_by_terminals_nodes(ds_term_node);
             complete_trees.push_back(nt);
             continue;
@@ -589,7 +600,7 @@ namespace deep {
           if (!is_only_entries(ap)) {
             // add tree to complete_trees
             new_trees.push_back(nt);
-            outs() << "1\n";
+            //outs() << "1\n";
             continue;
           }
           //add tree to new_trees
