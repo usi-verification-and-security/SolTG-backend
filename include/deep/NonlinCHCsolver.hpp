@@ -7,6 +7,7 @@
 #include <fstream>
 #include <chrono>
 #include <queue>
+#include <map>
 // #include <stdlib.h>
 
 using namespace std;
@@ -61,6 +62,8 @@ namespace ufo
 
       set<int> unreach_chcs;
       set<vector<int>> unsat_prefs;
+
+      ExprVector tree_vars;
 
   public:
 
@@ -256,7 +259,7 @@ namespace ufo
         dst_set.insert(ruleManager.chcs[i].dstRelation->getId());
         if(ruleManager.chcs[i].isFact){
           auto entry = ruleManager.chcs[i].dstRelation->getId();
-          outs() << entry << endl;
+          //outs() << entry << endl;
           entries_tmp.insert(entry);
         }else{
           auto tmp_src = ruleManager.chcs[i].srcRelations;
@@ -280,7 +283,7 @@ namespace ufo
           break;
         }
       }
-      outs() << "Exit index: " << exit_index << " : id" << exit_v << "\n";
+      //outs() << "Exit index: " << exit_index << " : id" << exit_v << "\n";
       //vector<int> entries(entries_tmp.begin(), entries_tmp.end());
       vector<int> entries; //all leaves end with "-1", because sometimes node can be leaf (isFact=true) and not leaf
       entries.push_back(-1);
@@ -343,6 +346,7 @@ namespace ufo
           {
             Expr new_name = mkTerm<string>("_tg_" + to_string(varCnt++), m_efac);
             vars.push_back(cloneVar(chc.srcVars[i][j], new_name));
+            tree_vars.push_back(cloneVar(chc.srcVars[i][j], new_name));
           }
           body = replaceAll(body, chc.srcVars[i], vars);
           treeToSMT(t->children[i], lev+1, vars);
@@ -361,24 +365,18 @@ namespace ufo
     {
       // TODO: smarter
       // get points of control-flow divergence
-      for (int i = 0; i < ruleManager.chcs.size(); i++){
-        std::ostringstream address;
-        auto name = ruleManager.chcs[i].dstRelation;
-        address << name;
-        string to_check = address.str();
-        if (to_check.find("if_true") != std::string::npos){
-          todoCHCs.insert(i);
-        }
-        if (to_check.find("if_false") != std::string::npos){
-          todoCHCs.insert(i);
-        }
-        //ToDo: update only for public functions
-//        if (to_check.find("_function_") != std::string::npos && to_check.find("block_") != std::string::npos){
-//          todoCHCs.insert(i);
-//        }
-//        if (to_check.find("if_header") != std::string::npos){
-//          todoCHCs.insert(i);
-//        }
+      for (auto & d : ruleManager.decls) {
+        if (ruleManager.outgs[d->left()].size() > 1)
+          for (auto &o: ruleManager.outgs[d->left()]) {
+            std::ostringstream address;
+            auto name = ruleManager.chcs[o].dstRelation;
+            address << name;
+            string to_check = address.str();
+            //todoCHCs.insert(o);
+            if (to_check.find("NULL") == std::string::npos){ //to_check.find("summary_") == std::string::npos &&
+              todoCHCs.insert(o);
+            }
+          }
       }
 
       // if the code is straight, just add queries
@@ -398,7 +396,7 @@ namespace ufo
     void exploreTracesNonLinearTG(int bnd)
     {
       set<int> todoCHCs;
-      int number_of_found_branchs = 0;
+      int number_of_tests = 0;
 
       fillTodos(todoCHCs);
 
@@ -407,16 +405,16 @@ namespace ufo
         outs () << "new iter with cur_bnd = "<< cur_bnd <<"\n";
         ruleManager.mkNewQuery(cur_bnd);
         //ruleManager.print();
-        ruleManager.print_parse_results();
+        //ruleManager.print_parse_results();
 
         // 1. restart tree generation (up to some depth, e.g., 10)
         auto chcG = initChcTree();
-        int tree_depth = 10;
+        int tree_depth = 15;
         for (int depth = 1; depth <= tree_depth; depth++){
           // 2. enumerate all trees and call `isSat`
           vector<deep::chcTree *> trees;
           chcG->getNext(trees);
-          outs() << "trees size : " << trees.size() << "\n";
+          //outs() << "trees size : " << trees.size() << "\n";
           for (auto t : trees){
             auto el = t->get_set();
             bool is_potential_tree_with_todo = false;
@@ -425,8 +423,12 @@ namespace ufo
                 is_potential_tree_with_todo = true;
               }
             }
-            if (!is_potential_tree_with_todo)
+            if (!is_potential_tree_with_todo) {
               continue; //goto next tree, t doesn't contain todoCHCs
+            }
+            // clear Var vector and restart var counter ToDo: check
+            tree_vars.clear();
+            varCnt = 0;
             treeToSMT(t->getRoot());
             auto res = u.isSat(ssa);
             if (false == res) outs () << "unrolling unsat\n";
@@ -434,20 +436,45 @@ namespace ufo
               outs () << "unrolling sat\n";
               for (int c : el) {
                 if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
-                  number_of_found_branchs++;
-                  outs() << "FOUND: " << c << " # number_of_found_branches: " << number_of_found_branchs <<"\n" ;
-                  outs() << "FOUND: " << ruleManager.chcs[c].dstRelation << "\n";
+                  outs() << "FOUND: " << c << " # number_of_found_branches: " << number_of_tests <<"\n" ;
+                  //outs() << "FOUND: " << ruleManager.chcs[c].dstRelation << "\n";
                   todoCHCs.erase(c); // remove CHCs from `todoCHCs`
-                  for (int tmp_x : el) {
-                    outs() << tmp_x << " ";
-                  }
-                  outs() <<  "\n";
-                  //ToDo: print / generate test here
-                  if (todoCHCs.empty()){
-                    outs () << "ALL Branches are covered: DONE\n";
-                    return;
+                }
+              }
+              outs() << "ToDos: ";
+              for (auto td: todoCHCs){
+                outs() << td << " ";
+              }
+              outs() <<  "\n";
+              Expr model = u.getModel();
+              outs() << "MODEL : \n";
+              //outs() << model << "\n";
+              // find bnd-variables that were used in the SSA encoding of the tree
+              // dump tree_var to the file;
+              outs() << "NEW TEST " << ++number_of_tests << "\n";
+              for (auto vr: tree_vars){
+                // get int value of this vr
+                std::ostringstream address;;
+                address << vr;
+                int var_index = stoi(address.str().substr(4));
+                for(auto chc: ruleManager.chcs){
+                  for(int arg_index: chc.arg_inds){
+                    if (var_index == arg_index){
+                      outs() << chc.dstRelation << " : ";
+                      outs() << "[" << vr << "=" << u.getModel(vr) << "] \n";
+                    }
                   }
                 }
+                // get vector of chcs where this var is
+                // get function name
+              }
+              outs() << "END TEST " << ++number_of_tests << "\n";
+
+              // that correspond to inputs of functions
+
+              if (todoCHCs.empty()){
+                outs () << "ALL Branches are covered: DONE\n";
+                return;
               }
             }
             else outs () << "unknown\n";

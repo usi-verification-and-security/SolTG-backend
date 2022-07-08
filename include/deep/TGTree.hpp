@@ -55,12 +55,6 @@ namespace deep {
       }
     }
 
-//    ~node(){
-//      for(auto v: children){
-//        delete v;
-//      }
-//    }
-
     void add_child(node *child) { children.push_back(child); }
 
     static node* clone(node* n){
@@ -379,8 +373,9 @@ namespace deep {
 
   };
 
-  class chcTreeGenerator{
-  private:
+  class chcTreeGenerator {
+
+  public:
     vector<int> entry;
     int exit_v;
     int exit_index;
@@ -391,7 +386,6 @@ namespace deep {
     map<int, bool> ds_term; //store int value, which are terminals only (true) or cycle, branches (false)
     map<int, node> ds_term_node;
 
-  public:
     chcTreeGenerator(vector<int> ep, int ex, int exit_index_value){
       entry = ep;
       exit_v = ex;
@@ -527,11 +521,11 @@ namespace deep {
           ds_term.insert({it->first, is_branch_or_cycle(it->first)});
         }
       }
-      outs() << "ds_map: \n";
+      //outs() << "ds_map: \n";
       map<int, bool>::iterator it2;
       for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)
       {
-        outs() << it2->first << " : " << it2->second << "\n";
+        //outs() << it2->first << " : " << it2->second << "\n";
       }
 
       for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)

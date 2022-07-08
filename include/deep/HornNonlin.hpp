@@ -97,6 +97,7 @@ namespace ufo
     int qCHCNum;  // index of the query in chc
     int total_var_cnt = 0;
     string infile;
+    map<Expr, vector<int>> outgs;
 
       //ToDo: Remove or recheck later on; move from Horn.hpp
     int debug;
@@ -429,6 +430,9 @@ namespace ufo
       }
 
       for (int i = 0; i < chcs.size(); i++) {
+        if (chcs[i].srcRelations.size() > 0 ) {
+          outgs[chcs[i].srcRelations[0]].push_back(i);
+        }
           expr_id[chcs[i].dstRelation] = i;
       }
 
