@@ -367,7 +367,12 @@ namespace deep {
 
     void extend_by_terminals_nodes(map<int, node> &ds_term_node){
       for (auto n: non_entry_leaves){
-        n = &ds_term_node.find(n->element)->second;
+        auto tmp = ds_term_node.find(n->element)->second;
+        n->element = tmp.element;
+        n->chc_index = tmp.chc_index;
+        for(auto c: tmp.children){
+          n->children.push_back(c);
+        }
       }
     }
 
@@ -478,12 +483,16 @@ namespace deep {
         n.chc_index = e.chc_index;
         for (int k: e.srs){
           if (k != -1){
-            node tmp{k};
-            init_termination_tree(k, tmp);
-            n.children.push_back(&tmp);
+            if (ds_term_node.find(k) != ds_term_node.end()){
+              n.children.push_back(&ds_term_node.find(k)->second);
+            }else {
+              node tmp{k};
+              init_termination_tree(k, tmp);
+              n.children.push_back(&tmp);
+            }
           }else{
-            node tmp{-1};
-            n.children.push_back(&tmp);
+            node *tmp = new node(-1,-1);
+            n.children.push_back(tmp);
           }
         }
       }
@@ -531,10 +540,11 @@ namespace deep {
       for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)
       {
         if (it2->second){
+          int id = it2->first;
           int chc_ind = ds_map.find(it2->first)->second[0].chc_index;
-          node tmp{it2->first, chc_ind};
-          init_termination_tree(it2->first, tmp);
-          ds_term_node.insert({it2->first, tmp});
+          node tmp{id, chc_ind};
+          init_termination_tree(id, tmp);
+          ds_term_node.insert({id, tmp});
         }
       }
 

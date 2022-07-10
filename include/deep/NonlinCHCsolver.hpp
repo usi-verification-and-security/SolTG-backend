@@ -360,6 +360,30 @@ namespace ufo
       ssa.push_back(body);
     }
 
+    void printTree(deep::node *t, int lev = 0)
+    {
+      if (t == nullptr || t->chc_index == -1) { return; }
+
+      auto & chc = ruleManager.chcs[t->chc_index];
+      outs() << " chc: ";
+      //pprint(chc.srcRelations);
+      for(auto src: chc.srcRelations) {
+        outs() << src << "(" << src->getId() << ")";
+      }
+      outs () << "   -> " << chc.dstRelation << "(" << chc.dstRelation->getId() << ")\n";
+      if (t->children.size() == chc.srcVars.size())
+      {
+        for (int i = 0; i < t->children.size(); i++)
+        {
+          printTree(t->children[i], lev+1);
+        }
+      }
+      else
+      {
+        for (auto & c : t->children) assert(c->chc_index == -1);
+      }
+    }
+
 
     void fillTodos(set<int> & todoCHCs)
     {
@@ -404,8 +428,9 @@ namespace ufo
       {
         outs () << "new iter with cur_bnd = "<< cur_bnd <<"\n";
         ruleManager.mkNewQuery(cur_bnd);
-        //ruleManager.print();
+        //ruleManager.print(ruleManager.chcs.back());
         //ruleManager.print_parse_results();
+        //ruleManager.print();
 
         // 1. restart tree generation (up to some depth, e.g., 10)
         auto chcG = initChcTree();
@@ -434,6 +459,7 @@ namespace ufo
             if (false == res) outs () << "unrolling unsat\n";
             else if (true == res) {
               outs () << "unrolling sat\n";
+              printTree(t->getRoot(), 0);
               for (int c : el) {
                 if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
                   outs() << "FOUND: " << c << " # number_of_found_branches: " << number_of_tests <<"\n" ;
@@ -451,7 +477,9 @@ namespace ufo
               //outs() << model << "\n";
               // find bnd-variables that were used in the SSA encoding of the tree
               // dump tree_var to the file;
-              outs() << "NEW TEST " << ++number_of_tests << "\n";
+              ofstream testfile;
+              testfile.open ("testgen.txt", std::ios_base::app);
+              testfile << "NEW TEST " << ++number_of_tests << "\n";
               for (auto vr: tree_vars){
                 // get int value of this vr
                 std::ostringstream address;;
@@ -460,15 +488,16 @@ namespace ufo
                 for(auto chc: ruleManager.chcs){
                   for(int arg_index: chc.arg_inds){
                     if (var_index == arg_index){
-                      outs() << chc.dstRelation << " : ";
-                      outs() << "[" << vr << "=" << u.getModel(vr) << "] \n";
+                      testfile << chc.dstRelation << " : ";
+                      testfile << "[" << vr << "=" << u.getModel(vr) << "] \n";
                     }
                   }
                 }
                 // get vector of chcs where this var is
                 // get function name
               }
-              outs() << "END TEST " << ++number_of_tests << "\n";
+              testfile << "END TEST " << ++number_of_tests << "\n";
+              testfile.close();
 
               // that correspond to inputs of functions
 

@@ -286,6 +286,9 @@ namespace ufo
             if (isInBody)
             {
               toSkip.insert(i);
+              outs () << "need to erase:   ";
+              pprint((chcs[i]).srcRelations);
+              outs () << " -> " << (chcs[i]).dstRelation << "\n";
             }
           }
         }
@@ -293,9 +296,12 @@ namespace ufo
         if (toDel) it = decls.erase(it);
         else ++it;
       }
-      for (auto rit = toSkip.rbegin(); rit != toSkip.rend(); rit++)
+      for (auto rit = toSkip.rbegin(); rit != toSkip.rend(); rit++) {
+        outs () << "actually erasing:   ";
+        pprint((chcs.begin() + *rit)->srcRelations);
+        outs () << " -> " <<(chcs.begin() + *rit)->dstRelation << "\n";
         chcs.erase(chcs.begin() + *rit);
-
+      }
       if (sz == decls.size()) return;
       else prune();
     }
@@ -313,8 +319,10 @@ namespace ufo
         chcs.push_back(HornRuleExt());
         HornRuleExt& hr = chcs.back();
 
+        //outs()<< "PARSE:  " << r << "\n\n";
         if (!normalize(r, hr))
         {
+          //outs() << " pop back\n";
           chcs.pop_back();
           continue;
         }
@@ -344,6 +352,7 @@ namespace ufo
             if (!addFailDecl(head->arg(0)->arg(0)))
             {
               chcs.pop_back();
+              //outs() << " pop back\n";
               continue;
             }
           }
