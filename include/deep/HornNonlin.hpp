@@ -46,6 +46,7 @@ namespace ufo
     bool isQuery;
     bool isInductive;
     vector<int> arg_inds;
+    map<int, Expr> arg_names;
 
     void assignVarsAndRewrite (vector<ExprVector>& _srcVars, vector<ExprVector>& invVarsSrc,
                                ExprVector& _dstVars, ExprVector& invVarsDst)
@@ -71,7 +72,19 @@ namespace ufo
         // outs () << "assign    dst  VarsAndRewrite: " <<  invVarsDst[i] << " -> " << _dstVars[i] << "\n";
         char_separator<char> sep("_");
         tokenizer< char_separator<char> > tokens(lexical_cast<string>(_dstVars[i]), sep);
-        if ("1" == *(std::next(tokens.begin()))) arg_inds.push_back(i);
+        vector<string> t;
+        for (auto it = tokens.begin(); it != tokens.end(); ++it)
+        {
+          t.push_back(*it);
+        }
+
+        if (t.size() >= 2 && t[t.size() - 2] == "1")
+        // if (tokens.size() == 4 && "1" == *(std::next(tokens.begin())))
+        {
+          // outs () << "      ------ > " << i << "\n";
+          arg_inds.push_back(i);
+          arg_names[i] = _dstVars[i];
+        }
       }
     }
   };
@@ -97,7 +110,6 @@ namespace ufo
     int qCHCNum;  // index of the query in chc
     int total_var_cnt = 0;
     string infile;
-    map<Expr, vector<int>> outgs;
 
       //ToDo: Remove or recheck later on; move from Horn.hpp
     int debug;
@@ -286,9 +298,6 @@ namespace ufo
             if (isInBody)
             {
               toSkip.insert(i);
-              outs () << "need to erase:   ";
-              pprint((chcs[i]).srcRelations);
-              outs () << " -> " << (chcs[i]).dstRelation << "\n";
             }
           }
         }
@@ -296,12 +305,9 @@ namespace ufo
         if (toDel) it = decls.erase(it);
         else ++it;
       }
-      for (auto rit = toSkip.rbegin(); rit != toSkip.rend(); rit++) {
-        outs () << "actually erasing:   ";
-        pprint((chcs.begin() + *rit)->srcRelations);
-        outs () << " -> " <<(chcs.begin() + *rit)->dstRelation << "\n";
+      for (auto rit = toSkip.rbegin(); rit != toSkip.rend(); rit++)
         chcs.erase(chcs.begin() + *rit);
-      }
+
       if (sz == decls.size()) return;
       else prune();
     }
@@ -319,10 +325,8 @@ namespace ufo
         chcs.push_back(HornRuleExt());
         HornRuleExt& hr = chcs.back();
 
-        //outs()<< "PARSE:  " << r << "\n\n";
         if (!normalize(r, hr))
         {
-          //outs() << " pop back\n";
           chcs.pop_back();
           continue;
         }
@@ -352,7 +356,6 @@ namespace ufo
             if (!addFailDecl(head->arg(0)->arg(0)))
             {
               chcs.pop_back();
-              //outs() << " pop back\n";
               continue;
             }
           }
@@ -439,9 +442,6 @@ namespace ufo
       }
 
       for (int i = 0; i < chcs.size(); i++) {
-        if (chcs[i].srcRelations.size() > 0 ) {
-          outgs[chcs[i].srcRelations[0]].push_back(i);
-        }
           expr_id[chcs[i].dstRelation] = i;
       }
 

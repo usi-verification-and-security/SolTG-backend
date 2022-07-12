@@ -64,6 +64,8 @@ namespace ufo
       set<vector<int>> unsat_prefs;
 
       ExprVector tree_vars;
+      ExprMap tree_map;
+      ExprMap tree_vmap;
 
   public:
 
@@ -327,6 +329,18 @@ namespace ufo
       }
 
       auto & chc = ruleManager.chcs[t->chc_index];
+      outs () << "\nssa-ing: ";
+      ruleManager.print(chc);
+
+      if (lev == 1)
+        for (auto & i : chc.arg_inds)
+        {
+          tree_vars.push_back(srcVars[i]);
+          tree_map[srcVars[i]] = chc.dstRelation;
+          tree_vmap[srcVars[i]] = chc.arg_names[i];
+          outs () << "   " << chc.dstVars[i] << " -> " << srcVars[i] << "\n";
+        }
+
       auto body = chc.body;
       body = replaceAll(body, chc.dstVars, srcVars);
       ExprVector newLocs;
@@ -346,7 +360,6 @@ namespace ufo
           {
             Expr new_name = mkTerm<string>("_tg_" + to_string(varCnt++), m_efac);
             vars.push_back(cloneVar(chc.srcVars[i][j], new_name));
-            tree_vars.push_back(cloneVar(chc.srcVars[i][j], new_name));
           }
           body = replaceAll(body, chc.srcVars[i], vars);
           treeToSMT(t->children[i], lev+1, vars);
@@ -390,12 +403,13 @@ namespace ufo
       // TODO: smarter
       // get points of control-flow divergence
       for (auto & d : ruleManager.decls) {
-        if (ruleManager.outgs[d->left()].size() > 1)
-          for (auto &o: ruleManager.outgs[d->left()]) {
-            std::ostringstream address;
-            auto name = ruleManager.chcs[o].dstRelation;
-            address << name;
-            string to_check = address.str();
+        vector<int> nums;
+        for (int c = 0; c < ruleManager.chcs.size(); c++)
+          if (ruleManager.chcs[c].dstRelation == d->left()) nums.push_back(c);
+
+        if (nums.size() > 1)
+          for (auto &o: nums) {
+            string to_check = lexical_cast<string>(ruleManager.chcs[o].dstRelation);
             //todoCHCs.insert(o);
             if (to_check.find("NULL") == std::string::npos){ //to_check.find("summary_") == std::string::npos &&
               todoCHCs.insert(o);
@@ -481,20 +495,8 @@ namespace ufo
               testfile.open ("testgen.txt", std::ios_base::app);
               testfile << "NEW TEST " << ++number_of_tests << "\n";
               for (auto vr: tree_vars){
-                // get int value of this vr
-                std::ostringstream address;;
-                address << vr;
-                int var_index = stoi(address.str().substr(4));
-                for(auto chc: ruleManager.chcs){
-                  for(int arg_index: chc.arg_inds){
-                    if (var_index == arg_index){
-                      testfile << chc.dstRelation << " : ";
-                      testfile << "[" << vr << "=" << u.getModel(vr) << "] \n";
-                    }
-                  }
-                }
-                // get vector of chcs where this var is
-                // get function name
+                testfile << tree_map[vr] << " [" << tree_vmap[vr]
+                         << "=" << u.getModel(vr) << "] \n";
               }
               testfile << "END TEST " << ++number_of_tests << "\n";
               testfile.close();
