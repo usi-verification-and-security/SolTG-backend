@@ -2,7 +2,6 @@
 #define HORNNONLIN__HPP__
 
 #include "ae/AeValSolver.hpp"
-#include <boost/tokenizer.hpp>
 
 using namespace std;
 using namespace boost;
@@ -45,7 +44,6 @@ namespace ufo
     bool isFact;
     bool isQuery;
     bool isInductive;
-    vector<int> arg_inds;
     map<int, Expr> arg_names;
 
     void assignVarsAndRewrite (vector<ExprVector>& _srcVars, vector<ExprVector>& invVarsSrc,
@@ -69,22 +67,7 @@ namespace ufo
         Expr var = cloneVar(invVarsDst[i], new_name);
         dstVars.push_back(var);
         body = mk<AND>(body, mk<EQ>(_dstVars[i], dstVars[i]));
-        // outs () << "assign    dst  VarsAndRewrite: " <<  invVarsDst[i] << " -> " << _dstVars[i] << "\n";
-        char_separator<char> sep("_");
-        tokenizer< char_separator<char> > tokens(lexical_cast<string>(_dstVars[i]), sep);
-        vector<string> t;
-        for (auto it = tokens.begin(); it != tokens.end(); ++it)
-        {
-          t.push_back(*it);
-        }
-
-        if (t.size() >= 2 && t[t.size() - 2] == "1")
-        // if (tokens.size() == 4 && "1" == *(std::next(tokens.begin())))
-        {
-          // outs () << "      ------ > " << i << "\n";
-          arg_inds.push_back(i);
-          arg_names[i] = _dstVars[i];
-        }
+        arg_names[i] = _dstVars[i];
       }
     }
   };

@@ -62,10 +62,7 @@ namespace ufo
 
       set<int> unreach_chcs;
       set<vector<int>> unsat_prefs;
-
-      ExprVector tree_vars;
-      ExprMap tree_map;
-      ExprMap tree_vmap;
+      vector<ExprMap> tree_map;
 
       map<string, map<string, vector<string>>> & signature; // <contract_name, <function_name_or_constructor, vector_of_param_names>>
 
@@ -331,17 +328,16 @@ namespace ufo
       }
 
       auto & chc = ruleManager.chcs[t->chc_index];
-      outs () << "\nssa-ing: ";
-      ruleManager.print(chc);
+      // outs () << "\nssa-ing: ";
+      // ruleManager.print(chc);
 
       if (lev == 1)
-        for (auto & i : chc.arg_inds)
-        {
-          tree_vars.push_back(srcVars[i]);
-          tree_map[srcVars[i]] = chc.dstRelation;
-          tree_vmap[srcVars[i]] = chc.arg_names[i];
-          outs () << "   " << chc.dstVars[i] << " -> " << srcVars[i] << "\n";
-        }
+      {
+        ExprMap tmp;
+        for (auto & i : chc.arg_names)
+          tmp[i.second] = srcVars[i.first];
+        tree_map.push_back(tmp);
+      }
 
       auto body = chc.body;
       body = replaceAll(body, chc.dstVars, srcVars);
@@ -468,7 +464,8 @@ namespace ufo
               continue; //goto next tree, t doesn't contain todoCHCs
             }
             // clear Var vector and restart var counter ToDo: check
-            tree_vars.clear();
+
+            tree_map.clear();
             varCnt = 0;
             treeToSMT(t->getRoot());
             auto res = u.isSat(ssa);
@@ -496,9 +493,37 @@ namespace ufo
               ofstream testfile;
               testfile.open ("testgen.txt", std::ios_base::app);
               testfile << "NEW TEST " << ++number_of_tests << "\n";
-              for (auto vr: tree_vars){
-                testfile << tree_map[vr] << " [" << tree_vmap[vr]
-                         << "=" << u.getModel(vr) << "] \n";
+
+              for (int fun = 0; fun < cur_bnd; fun++)
+              {
+                auto d = ruleManager.chcs.back().srcRelations[fun];
+                string name = lexical_cast<string>(d);
+                for (auto & a : signature)
+                {
+                  // TODO: contract name
+                  for(auto & b : a.second)
+                  {
+                    if (name.find(b.first) == -1) continue;
+                    testfile << b.first << "(";
+                    for (int i = 0; i < b.second.size(); i++)
+                    {
+                      auto & c = b.second[i];
+                      bool found = false;
+                      for (auto & t : tree_map[fun])
+                      {
+                        if (found) break;
+                        name = lexical_cast<string>(t.first);
+                        if (name.find(c) == 0)
+                        {
+                          testfile << u.getModel(t.second);
+                          if (i < b.second.size() - 1) testfile << ", ";
+                          found = true;
+                        }
+                      }
+                    }
+                    testfile << ")\n";
+                  }
+                }
               }
               testfile << "END TEST " << ++number_of_tests << "\n";
               testfile.close();
@@ -734,6 +759,11 @@ namespace ufo
       }
 
       NonlinCHCsolver nonlin(ruleManager, signature);
+      if (signature.size() != 1)
+      {
+        outs () << "Only a single contract is supported, currently\n";
+        exit(0);
+      }
       //nonlin.setSignature(signature);
       // nonlin.solveIncrementally();
 
