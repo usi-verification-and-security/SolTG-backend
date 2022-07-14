@@ -49,27 +49,76 @@ void getStrValues(const char * opt, vector<string> & values, int argc, char ** a
     }
 }
 
-static inline void getNums(set<int>& nums, char * str)
-{
-    if (str == NULL) return;
-    int len = strlen(str);
-    char* pch = strchr(str, ',');
-    int pos1 = 0;
-    int pos2 = 0;
-    while (pch != NULL)
-    {
-        pos2 = pch - str;
-        char* substr = (char*)malloc(pos2 - pos1);
-        strncpy(substr, str + pos1, pos2 - pos1);
-        nums.insert(atoi(substr));
-        pch = strchr(pch + 1, ',');
-        pos1 = pos2 + 1;
-    }
-    if (pos1 == len) return;
-    char* substr = (char*)malloc(len - pos1);
-    strncpy(substr, str + pos1, len - pos1);
-    nums.insert(atoi(substr));
+static inline void splitLine(vector<string>& input, string input_str, char d){
+  if (input_str.empty()) return;
+  string s = input_str;
+  size_t pos = 0;
+  std::string token;
+  while ((pos = s.find(d)) != std::string::npos) {
+    token = s.substr(0, pos);
+    input.push_back(token);
+    s.erase(0, pos + 1);
+  }
+  input.push_back(s);
 }
+
+bool isContract(string w1){
+  string contract_string = "contract";
+  return w1.find(contract_string) != std::string::npos;
+}
+
+void print_signature(map<string, map<string, vector<string>>>& signature){
+  for (auto const &pair: signature) {
+    outs() << "contract:" << pair.first << "\n";
+    for(auto f: pair.second){
+      outs() << "{" << f.first << ": ";
+      for(auto p: f.second){
+        outs() << p << " ";
+      }
+      outs() << "}\n";
+    }
+  }
+}
+
+
+static inline void getSignature(map<string, map<string, vector<string>>>& signature, string str)
+{
+    vector<string> tmp_split;
+    splitLine(tmp_split, str, '^');
+    map<string, vector<string>> current;
+    string current_contract_name;
+
+    for (auto i: tmp_split){
+      if (isContract(i)){
+        if (!current.empty()){
+          signature.insert({current_contract_name, current});
+        }
+        map<string, vector<string>> new_current;
+        current = new_current;
+        vector<string> tmp;
+        splitLine(tmp, i, ':');
+        vector<string> tmp_f;
+        splitLine(tmp_f, tmp[1], ',');
+        vector<string> tmp_name;
+        splitLine(tmp_name, tmp[0], '_');
+        current.insert({tmp[0], tmp_f});
+        current_contract_name = tmp_name[1];
+      }else{
+        vector<string> tmp;
+        splitLine(tmp, i, ':');
+        vector<string> tmp_f;
+        splitLine(tmp_f, tmp[1], ',');
+        current.insert({tmp[0], tmp_f});
+      }
+    }
+
+    if (!current.empty()){
+      signature.insert({current_contract_name, current});
+    }
+
+    //print_signature(signature);
+}
+
 
 const char *OPT_HELP = "--help";
 const char *OPT_MAX_ATTEMPTS = "--attempts";
@@ -94,8 +143,8 @@ const char *OPT_DEBUG = "--debug";
 
 int main (int argc, char ** argv)
 {
-    set<int> nums;
-    getNums(nums, getStrValue("--keys", NULL, argc, argv));
+    map<string, map<string, vector<string>>> signature;
+    getSignature(signature, getStrValue("--keys", NULL, argc, argv));
     bool to_skip = getBoolValue("--no-term", false, argc, argv);
     int lookahead = getIntValue("--lookahead", 3, argc, argv);
     bool prio = getBoolValue("--prio", false, argc, argv);
@@ -130,7 +179,7 @@ int main (int argc, char ** argv)
     if (d_m || d_p || d_d || d_s) do_disj = true;
     if (do_disj) do_dl = true;
 
-    testgen(string(argv[argc-1]), nums, max_attempts, to, densecode, aggressivepruning,
+    testgen(string(argv[argc-1]), signature, max_attempts, to, densecode, aggressivepruning,
             do_dl, do_elim, do_disj, do_prop, d_m, d_p, d_d, d_s,
             to_skip, invMode, lookahead, lb, lmax, prio, debug);
     return 0;

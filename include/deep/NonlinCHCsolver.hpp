@@ -67,9 +67,11 @@ namespace ufo
       ExprMap tree_map;
       ExprMap tree_vmap;
 
+      map<string, map<string, vector<string>>> & signature; // <contract_name, <function_name_or_constructor, vector_of_param_names>>
+
   public:
 
-      NonlinCHCsolver(CHCs &r) : m_efac(r.m_efac), ruleManager(r), u(m_efac) {}
+      NonlinCHCsolver(CHCs &r, map<string, map<string,vector<string>>> & s) : m_efac(r.m_efac), ruleManager(r), u(m_efac), signature(s) {}
 
       bool checkAllOver(bool checkQuery = false) {
           for (auto &hr: ruleManager.chcs) {
@@ -703,19 +705,19 @@ namespace ufo
       outs () << "Done with TG\n";
     }
 
-    inline void
-      solveNonlin(string smt, int inv) {
-          ExprFactory m_efac;
-          EZ3 z3(m_efac);
-          CHCs ruleManager(m_efac, z3);
-          ruleManager.parse(smt);
-          NonlinCHCsolver nonlin(ruleManager);
-
-          nonlin.solveIncrementally(inv);
-      };
+//    inline void
+//      solveNonlin(string smt, int inv) {
+//          ExprFactory m_efac;
+//          EZ3 z3(m_efac);
+//          CHCs ruleManager(m_efac, z3);
+//          ruleManager.parse(smt);
+//          NonlinCHCsolver nonlin(ruleManager);
+//
+//          nonlin.solveIncrementally(inv);
+//      };
   };
 
-    inline void testgen(string smt, set<int>& nums, unsigned maxAttempts, unsigned to,
+    inline void testgen(string smt, map<string, map<string, vector<string>>>& signature, unsigned maxAttempts, unsigned to,
                     bool freqs, bool aggp, bool enableDataLearning, bool doElim,
                     bool doDisj, int doProp, bool dAllMbp, bool dAddProp, bool dAddDat,
                     bool dStrenMbp, bool toSkip, int invMode, int lookahead,
@@ -731,7 +733,8 @@ namespace ufo
         return;
       }
 
-      NonlinCHCsolver nonlin(ruleManager);
+      NonlinCHCsolver nonlin(ruleManager, signature);
+      //nonlin.setSignature(signature);
       // nonlin.solveIncrementally();
 
       // if (nums.size() > 0)
