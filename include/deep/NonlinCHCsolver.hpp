@@ -409,7 +409,9 @@ namespace ufo
           for (auto &o: nums) {
             string to_check = lexical_cast<string>(ruleManager.chcs[o].dstRelation);
             //todoCHCs.insert(o);
-            if (to_check.find("NULL") == std::string::npos){ //to_check.find("summary_") == std::string::npos &&
+            if (to_check.find("NULL") == std::string::npos
+            && to_check.find("nondet_interface") == std::string::npos
+            && to_check.find("summary_") == std::string::npos){
               todoCHCs.insert(o);
             }
           }
