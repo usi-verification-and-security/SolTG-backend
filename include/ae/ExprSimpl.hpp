@@ -2791,6 +2791,13 @@ namespace ufo
         else return mknary<EXISTS>(args);
     }
 
+    static Expr mkQFla (Expr def, bool forall = false)
+    {
+      ExprSet vars;
+      filter (def, IsConst (), inserter(vars, vars.begin()));
+      return mkQFla(def, vars, forall);
+    }
+
     // rewrite just equalities
     template<typename Range> static Expr simpleQE(Expr exp, Range& quantified)
     {

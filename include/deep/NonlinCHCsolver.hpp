@@ -8,6 +8,7 @@
 #include <chrono>
 #include <queue>
 #include <map>
+#include <time.h>
 // #include <stdlib.h>
 
 using namespace std;
@@ -429,6 +430,76 @@ namespace ufo
       }
     }
 
+    void serialize()
+    {
+      std::ofstream enc_chc;
+      enc_chc.open("tg_query.smt2");
+      enc_chc << "(set-logic HORN)\n";
+      for (auto & d: ruleManager.decls)
+      {
+        enc_chc << "(declare-fun " << d->left() << " (";
+        for (int i = 1; i < d->arity() - 1; i++)
+        {
+          u.print(d->arg(i), enc_chc);
+          if (i < d->arity()-2) enc_chc << " ";
+        }
+        enc_chc << ") Bool)\n";
+      }
+      enc_chc << "\n";
+      for (auto & c : ruleManager.chcs)
+      {
+        Expr src, dst;
+        ExprVector srcs;
+        if (c.isFact)
+        {
+          src = mk<TRUE>(m_efac);
+        }
+        else
+        {
+          for (auto & d : ruleManager.decls)
+          {
+            for (int k = 0; k < c.srcRelations.size(); k++)
+            {
+              if (d->left() == c.srcRelations[k])
+              {
+//                src = fapp(d, c.srcVars[k]);
+                srcs.push_back(fapp(d, c.srcVars[k]));
+                break;
+              }
+            }
+          }
+        }
+        if (c.isQuery)
+        {
+          dst = mk<FALSE>(m_efac);
+        }
+        else
+        {
+          for (auto & d : ruleManager.decls)
+          {
+            if (d->left() == c.dstRelation)
+            {
+              dst = fapp(d, c.dstVars);
+              break;
+            }
+          }
+        }
+
+        Expr tmp_srs;
+        if (srcs.size() >= 1) {
+          tmp_srs = srcs[0];
+          for (int k = 1; k < srcs.size(); k++) {
+            tmp_srs = mk<AND>(tmp_srs, srcs[k]);
+          }
+        }else{ tmp_srs = src; }
+
+        enc_chc << "(assert ";
+        u.print(mkQFla(mk<IMPL>(mk<AND>(tmp_srs, c.body), dst), true), enc_chc);
+        enc_chc << ")\n\n";
+      }
+      enc_chc << "(check-sat)\n";
+    }
+
 
     // TODO: skeleton of the new implementation
     void exploreTracesNonLinearTG(int bnd)
@@ -470,11 +541,16 @@ namespace ufo
             tree_map.clear();
             varCnt = 0;
             treeToSMT(t->getRoot());
+            //ToDo: add dump of quiry to smt
+            serialize();
             auto res = u.isSat(ssa);
+            time_t my_time = time(NULL);
+            outs () << "rq_t : " << ctime(&my_time);
             if (false == res) outs () << "unrolling unsat\n";
             else if (true == res) {
               outs () << "unrolling sat\n";
-              printTree(t->getRoot(), 0);
+              for (int c : el) {outs() << c << " ";} outs() << "\n";
+              //printTree(t->getRoot(), 0);
               for (int c : el) {
                 if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
                   outs() << "FOUND: " << c << " # number_of_found_branches: " << number_of_tests <<"\n" ;
@@ -495,7 +571,16 @@ namespace ufo
               ofstream testfile;
               testfile.open ("testgen.txt", std::ios_base::app);
               testfile << "NEW TEST " << ++number_of_tests << "\n";
-
+              ruleManager.print_parse_results();
+              int index = 0;
+              for (auto & tt : tree_map)
+              {
+                outs() << index << " : " << "\n";
+                for (auto tmp: tt) {
+                  outs() << " " << lexical_cast<string>(tmp.first) << "\n";
+                }
+                outs() << "\n";
+              }
               for (int fun = 0; fun < cur_bnd; fun++)
               {
                 auto d = ruleManager.chcs.back().srcRelations[fun];
@@ -754,7 +839,7 @@ namespace ufo
       ExprMap invs;
       CHCs ruleManager(m_efac, z3);
       ruleManager.parse(smt, true);
-      // ruleManager.print_parse_results();
+      //ruleManager.print_parse_results();
       if (ruleManager.index_cycle_chc == -1 || ruleManager.index_fact_chc == -1){
         outs() << "no function found\n";
         return;
