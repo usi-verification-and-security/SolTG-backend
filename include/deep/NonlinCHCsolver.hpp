@@ -551,6 +551,10 @@ namespace ufo
               outs () << "unrolling sat\n";
               for (int c : el) {outs() << c << " ";} outs() << "\n";
               //printTree(t->getRoot(), 0);
+              stringstream strs;
+              strs << "dot_dump_cur_bnd_" << cur_bnd << "_depth_" << depth << ".dot";
+              string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();
+              t->printToDot(dotFilename, ruleManager);
               for (int c : el) {
                 if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
                   outs() << "FOUND: " << c << " # number_of_found_branches: " << number_of_tests <<"\n" ;

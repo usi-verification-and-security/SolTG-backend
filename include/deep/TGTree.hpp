@@ -1,5 +1,6 @@
 #include <list>
 #include <map>
+#include <fstream>
 
 using namespace std;
 
@@ -78,6 +79,7 @@ namespace deep {
   private:
     node *root;
     vector<node *> non_entry_leaves;
+    int node_index;
   public:
     chcTree(int r){
       root = new node{r};
@@ -198,6 +200,36 @@ namespace deep {
       }
       printInOrder(root);
       outs() << endl;
+    }
+
+
+    void printToDot(char * filename, ufo::CHCs &ruleManager)  {
+      if (empty()) {
+        outs() << "tree is emtpy\n";
+        return;
+      }
+      node_index = 0;
+      std::ofstream fout(filename);
+      fout << "digraph print {\n";
+      dump_dot(fout, root, node_index, ruleManager);
+      fout << "}\n";
+
+    }
+
+    void dump_dot(std::ofstream &fout, node *t, int parents_index, ufo::CHCs &ruleManager)  {
+      if (t == nullptr) { return; }
+      //fout << t->element << ":" << t->chc_index  << " ";
+      if (t->element == -1) {
+        fout << node_index << "[label=\"[-1]\" ordering=\"out\"]\n";
+      }else{
+        fout << node_index << "[label=\"" << ruleManager.chcs[t->chc_index].dstRelation  << "\" ordering=\"out\"]\n";
+      }
+      int p_index = node_index;
+      for (int i = 0; i < t->children.size(); i++) {
+        node_index++;
+        fout << p_index << " -> " << node_index << "\n";
+        dump_dot(fout, t->children[i], p_index, ruleManager);
+      }
     }
 
     int numOfNodes() const {
