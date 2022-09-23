@@ -511,8 +511,9 @@ namespace ufo
 
       for (int cur_bnd = 1; cur_bnd <= bnd && !todoCHCs.empty(); cur_bnd++)
       {
-        outs () << "new iter with cur_bnd = "<< cur_bnd <<"\n";
-        ruleManager.mkNewQuery(cur_bnd);
+        outs () << "new iter with cur_bnd = " << cur_bnd <<"\n";
+        while (ruleManager.mkNewQuery(cur_bnd))
+        {
         //ruleManager.print(ruleManager.chcs.back());
         //ruleManager.print_parse_results();
         //ruleManager.print();
@@ -524,7 +525,7 @@ namespace ufo
           // 2. enumerate all trees and call `isSat`
           vector<deep::chcTree *> trees;
           chcG->getNext(trees);
-          //outs() << "trees size : " << trees.size() << "\n";
+          outs() << "depth: " << depth << "; trees size : " << trees.size() << "\n";
           for (auto t : trees){
             auto el = t->get_set();
             bool is_potential_tree_with_todo = false;
@@ -551,10 +552,6 @@ namespace ufo
               outs () << "unrolling sat\n";
               for (int c : el) {outs() << c << " ";} outs() << "\n";
               //printTree(t->getRoot(), 0);
-              stringstream strs;
-              strs << "dot_dump_cur_bnd_" << cur_bnd << "_depth_" << depth << ".dot";
-              string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();
-              t->printToDot(dotFilename, ruleManager);
               for (int c : el) {
                 if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
                   outs() << "FOUND: " << c << " # number_of_found_branches: " << number_of_tests <<"\n" ;
@@ -640,6 +637,7 @@ namespace ufo
         */
 
         ruleManager.chcs.pop_back(); // important: kill the query created in `mkNewQuery`
+        }
       }
     }
 
@@ -844,10 +842,10 @@ namespace ufo
       CHCs ruleManager(m_efac, z3);
       ruleManager.parse(smt, true);
       //ruleManager.print_parse_results();
-      if (ruleManager.index_cycle_chc == -1 || ruleManager.index_fact_chc == -1){
-        outs() << "no function found\n";
-        return;
-      }
+      // if (ruleManager.index_cycle_chc == -1 || ruleManager.index_fact_chc == -1){
+      //   outs() << "no function found\n";
+      //   return;
+      // }
 
       NonlinCHCsolver nonlin(ruleManager, signature);
       if (signature.size() != 1)

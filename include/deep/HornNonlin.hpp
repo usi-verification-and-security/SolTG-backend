@@ -86,7 +86,8 @@ namespace ufo
     ExprSet decls;
     Expr failDecl;
     vector<HornRuleExt> chcs;
-    int index_cycle_chc, index_fact_chc;
+    int index_fact_chc;
+    vector<int> index_cycle_chc;
     map<Expr, ExprVector> invVars;
     map<Expr, vector<int>> incms;
     map<Expr, int> expr_id;
@@ -430,7 +431,6 @@ namespace ufo
 
       prune();
 
-      index_cycle_chc = -1;
       index_fact_chc = -1;
       // find: index_cycle_chc
       for (int i = 0; i < chcs.size(); i++)
@@ -438,17 +438,18 @@ namespace ufo
         if (find (chcs[i].srcRelations.begin(), chcs[i].srcRelations.end(),
            chcs[i].dstRelation) != chcs[i].srcRelations.end())
            {
-             index_cycle_chc = i;
+             index_cycle_chc.push_back(i);
              outs () << "cycle found (#" << i << "):\n";
              print(chcs[i]);
-             break;
            }
       }
+
+      assert(!index_cycle_chc.empty());
 
       // find fact now:
       for (int i = 0; i < chcs.size(); i++)
       {
-        if (chcs[i].isFact && chcs[i].dstRelation == chcs[index_cycle_chc].dstRelation)
+        if (chcs[i].isFact && chcs[i].dstRelation == chcs[index_cycle_chc[0]].dstRelation)
          {
            index_fact_chc = i;
            outs () << "fact found (#" << i << "):\n";
@@ -472,25 +473,41 @@ namespace ufo
       // }
     }
 
-    void mkNewQuery(int cycl_num)
+    vector<vector<int>> cur_batch;
+    void findCombs(int num, vector<vector<int>>& res)
     {
-      // outs()<< "fact body: ";
-      // pprint(chcs[index_fact_chc].body);
-      // outs() << "\n";
-      // outs()<< "cycl body: ";
-      // pprint(chcs[index_cycle_chc].body);
-      // outs() << "\n";
+      if (num == 1)
+      {
+        for (int i : index_cycle_chc)
+        {
+          vector<int> v2 = {i};
+          res.push_back(v2);
+        }
+      }
+      else
+      {
+        findCombs(num - 1, res);
+        vector<vector<int>> res2;
+        for (auto & v : res)
+        {
+          for (int i : index_cycle_chc)
+          {
+            vector<int> v2 = v;
+            v2.push_back(i);
+            res2.push_back(v2);
+          }
+        }
+        res = res2;
+      }
+    }
 
-      auto & cy = chcs[index_cycle_chc];
-      assert(cy.srcRelations.size() == 2);
-
-      int sum = 0, tr = 0;
-      for (; sum < cy.srcRelations.size(); sum++)
-        if (cy.srcRelations[sum] != cy.dstRelation)
-          break;
-      for (; tr < cy.srcRelations.size(); tr++)
-        if (cy.srcRelations[tr] == cy.dstRelation)
-          break;
+    bool mkNewQuery(int cycl_num)
+    {
+      if (cur_batch.empty())
+      {
+        outs () << "  cur_batch empt: " << cycl_num << "\n";
+        findCombs(cycl_num, cur_batch);
+      }
 
       // outs () << "to copy: " << cy.srcRelations[sum] << "\n";
       chcs.push_back(chcs[index_fact_chc]);
@@ -499,12 +516,21 @@ namespace ufo
       int loc = 0;
       ExprVector newbody;
       ExprVector& prevdst = chcs[index_fact_chc].dstVars;
-      ExprVector& cursrc = chcs[index_cycle_chc].srcVars[tr];
       Expr prevbody = chcs[index_fact_chc].body;
 
-      // Expr curbody = chcs[index_cycle_chc].body;
       for (int i = 0; i < cycl_num; i++)
       {
+        auto & cy = chcs[cur_batch.back()[i]];
+
+        int sum = 0, tr = 0;
+        for (; sum < cy.srcRelations.size(); sum++)
+          if (cy.srcRelations[sum] != cy.dstRelation)
+            break;
+        for (; tr < cy.srcRelations.size(); tr++)
+          if (cy.srcRelations[tr] == cy.dstRelation)
+            break;
+        ExprVector& cursrc = cy.srcVars[tr];
+
         // outs () << "\n\ncopy " << i << "\n";
 
         ExprMap repl1, repl2, repl3;
@@ -516,18 +542,18 @@ namespace ufo
           repl2[cursrc[k]] = newvar;
           loc++;
         }
-        for (int k = 0; k < chcs[index_cycle_chc].locVars.size(); k++)
+        for (int k = 0; k < cy.locVars.size(); k++)
         {
           auto newvar = mkTerm<string> ("_loc" + to_string(loc), m_efac);
-          newvar = cloneVar(chcs[index_cycle_chc].locVars[k], newvar);
-          repl2[chcs[index_cycle_chc].locVars[k]] = newvar;
+          newvar = cloneVar(cy.locVars[k], newvar);
+          repl2[cy.locVars[k]] = newvar;
           loc++;
         }
         prevbody = replaceAll(prevbody, repl1);
         newbody.push_back(prevbody);
         // pprint(prevbody);
-        prevbody = replaceAll(chcs[index_cycle_chc].body, repl2);
-        prevdst = chcs[index_cycle_chc].dstVars;
+        prevbody = replaceAll(cy.body, repl2);
+        prevdst = cy.dstVars;
 
         hr.srcRelations.push_back(cy.srcRelations[sum]);
         hr.srcVars.push_back(ExprVector());
@@ -549,7 +575,9 @@ namespace ufo
       hr.isFact = 0;
       hr.dstRelation = failDecl;
       hr.dstVars.clear();
-      // hr.arg_inds = ..
+
+      cur_batch.pop_back();
+      return !cur_batch.empty();
     }
 
     void print_parse_results(){
@@ -562,7 +590,8 @@ namespace ufo
         outs() << " dst: " << chcs[i].dstRelation->getId() << " : "
         << chcs[i].dstRelation << " isQuery : " << chcs[i].isQuery << "\n";
       }
-      outs() << "index_cycle_chc : " << index_cycle_chc << "\n";
+      for (auto i : index_cycle_chc)
+        outs() << "index_cycle_chc : " << i << "\n";
       int i = 0;
       outs() << "decls \n";
       for (auto d: decls){
@@ -590,7 +619,7 @@ namespace ufo
         if (failDecl != decl)
         {
           //TODO:support
-          errs () << "Multiple queries are not supported\n";
+          // errs () << "Multiple queries are not supported\n";
           //exit(0);
           return false;
         }
