@@ -501,6 +501,10 @@ namespace ufo
       }
     }
 
+    void clean_cur_batch(){
+      while (cur_batch.size() > 0){cur_batch.pop_back();}
+    }
+
     bool mkNewQuery(int cycl_num)
     {
       if (cur_batch.empty())
@@ -576,7 +580,7 @@ namespace ufo
       hr.dstRelation = failDecl;
       hr.dstVars.clear();
 
-      cur_batch.pop_back();
+      if (cur_batch.size() > 1){cur_batch.erase(cur_batch.begin());}
       return !cur_batch.empty();
     }
 

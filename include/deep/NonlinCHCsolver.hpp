@@ -403,6 +403,11 @@ namespace ufo
       // get points of control-flow divergence
       for (auto & d : ruleManager.decls) {
         vector<int> nums;
+
+        for (int c = 0; c < ruleManager.chcs.size(); c++) {
+          string to_check = lexical_cast<string>(ruleManager.chcs[c].dstRelation);
+          if (to_check.find("block_") != std::string::npos){todoCHCs.insert(c);}
+        }
         for (int c = 0; c < ruleManager.chcs.size(); c++)
           if (ruleManager.chcs[c].dstRelation == d->left()) nums.push_back(c);
 
@@ -411,8 +416,8 @@ namespace ufo
             string to_check = lexical_cast<string>(ruleManager.chcs[o].dstRelation);
             //todoCHCs.insert(o);
             if (to_check.find("NULL") == std::string::npos
-            && to_check.find("nondet_interface") == std::string::npos
-            && to_check.find("summary_") == std::string::npos){
+            /*&& to_check.find("nondet_interface") == std::string::npos
+            && to_check.find("summary_") == std::string::npos*/){
               todoCHCs.insert(o);
             }
           }
@@ -506,11 +511,15 @@ namespace ufo
     {
       set<int> todoCHCs;
       int number_of_tests = 0;
+      int chcs_original_size = ruleManager.chcs.size();
 
       fillTodos(todoCHCs);
 
       for (int cur_bnd = 1; cur_bnd <= bnd && !todoCHCs.empty(); cur_bnd++)
       {
+        while (ruleManager.chcs.size() > chcs_original_size){ruleManager.chcs.pop_back();}
+        ruleManager.clean_cur_batch();
+        int trees_checked_per_cur_bnd = 0;
         outs () << "new iter with cur_bnd = " << cur_bnd <<"\n";
         while (ruleManager.mkNewQuery(cur_bnd))
         {
@@ -545,11 +554,22 @@ namespace ufo
             //ToDo: add dump of quiry to smt
             serialize();
             auto res = u.isSat(ssa);
+            trees_checked_per_cur_bnd++;
             time_t my_time = time(NULL);
             outs () << "rq_t : " << ctime(&my_time);
-            if (false == res) outs () << "unrolling unsat\n";
+            stringstream strs;
+            strs << "dot_dump_cur_bnd_" << cur_bnd << "_depth_" << depth << "_ind_" << trees_checked_per_cur_bnd;
+            if (false == res) {
+              strs << "_unsat.dot";
+              string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();
+              t->printToDot(dotFilename, ruleManager);
+              outs () << "unrolling unsat\n";
+            }
             else if (true == res) {
               outs () << "unrolling sat\n";
+              strs << "_SAT.dot";
+              string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();
+              t->printToDot(dotFilename, ruleManager);
               for (int c : el) {outs() << c << " ";} outs() << "\n";
               //printTree(t->getRoot(), 0);
               for (int c : el) {
@@ -630,6 +650,7 @@ namespace ufo
           }
         }
         chcG->clear();
+        if (trees_checked_per_cur_bnd > 30){trees_checked_per_cur_bnd = 0; break;}
 
         // GIVEN: at this point, there is only one query, and it is re-constructed in each iteration
         /* TODO:

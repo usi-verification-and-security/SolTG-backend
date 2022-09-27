@@ -203,7 +203,7 @@ namespace deep {
     }
 
 
-    void printToDot(char * filename, ufo::CHCs &ruleManager)  {
+    void printToDot(const char * filename, ufo::CHCs &ruleManager)  {
       if (empty()) {
         outs() << "tree is emtpy\n";
         return;
