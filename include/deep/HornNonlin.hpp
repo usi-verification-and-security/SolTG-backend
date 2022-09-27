@@ -501,12 +501,21 @@ namespace ufo
       }
     }
 
-    void clean_cur_batch(){
-      while (cur_batch.size() > 0){cur_batch.pop_back();}
+    int getNumQs()
+    {
+      int i = 0;
+      for (auto & c : chcs)
+        i += c.isQuery;
+      return i;
     }
 
     bool mkNewQuery(int cycl_num)
     {
+      outs () << "  ***************   pop back the query ************\n";
+      if (chcs.back().isQuery)
+        chcs.pop_back(); // important: kill the query created in `mkNewQuery`
+      outs () << "mkNewQuery: " << cur_batch.size() << "; chcs " << chcs.size() << "\n";
+
       if (cur_batch.empty())
       {
         outs () << "  cur_batch empt: " << cycl_num << "\n";
@@ -579,9 +588,13 @@ namespace ufo
       hr.isFact = 0;
       hr.dstRelation = failDecl;
       hr.dstVars.clear();
+      outs () << "   >>> new query:   ";
+      pprint(hr.srcRelations);
+      outs () << "\n";
 
-      if (cur_batch.size() > 1){cur_batch.erase(cur_batch.begin());}
-      return !cur_batch.empty();
+      assert (!cur_batch.empty());
+      cur_batch.pop_back();
+      return cur_batch.empty();
     }
 
     void print_parse_results(){

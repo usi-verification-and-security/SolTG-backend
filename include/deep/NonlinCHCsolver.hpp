@@ -403,7 +403,6 @@ namespace ufo
       // get points of control-flow divergence
       for (auto & d : ruleManager.decls) {
         vector<int> nums;
-
         for (int c = 0; c < ruleManager.chcs.size(); c++) {
           string to_check = lexical_cast<string>(ruleManager.chcs[c].dstRelation);
           if (to_check.find("block_") != std::string::npos){todoCHCs.insert(c);}
@@ -517,12 +516,13 @@ namespace ufo
 
       for (int cur_bnd = 1; cur_bnd <= bnd && !todoCHCs.empty(); cur_bnd++)
       {
-        while (ruleManager.chcs.size() > chcs_original_size){ruleManager.chcs.pop_back();}
-        ruleManager.clean_cur_batch();
         int trees_checked_per_cur_bnd = 0;
+
         outs () << "new iter with cur_bnd = " << cur_bnd <<"\n";
-        while (ruleManager.mkNewQuery(cur_bnd))
+        while (true)
         {
+        bool last_iter = ruleManager.mkNewQuery(cur_bnd);
+        assert(ruleManager.getNumQs() == 1);
         //ruleManager.print(ruleManager.chcs.back());
         //ruleManager.print_parse_results();
         //ruleManager.print();
@@ -656,8 +656,7 @@ namespace ufo
         /* TODO:
           3. for all tree that gave `SAT`, extract tests, and remove CHCs from `todoCHCs`
         */
-
-        ruleManager.chcs.pop_back(); // important: kill the query created in `mkNewQuery`
+        if (last_iter) break;
         }
       }
     }
