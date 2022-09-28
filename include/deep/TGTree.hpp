@@ -58,6 +58,20 @@ namespace deep {
 
     void add_child(node *child) { children.push_back(child); }
 
+    bool equals(node *n){
+      if (children.size() != n->children.size()){
+        return false;
+      }else{
+        if (element != n->element){return false;}
+        bool tmp = true;
+        for (int i = 0; i < children.size(); i++){
+          tmp = children[i]->equals(n->children[i]);
+          if (not tmp) {return false;}
+        }
+      }
+      return true;
+    }
+
     static node* clone(node* n){
       int tmp_e = n->element;
       int tmp_i = n->chc_index;
@@ -439,6 +453,7 @@ namespace deep {
       ds_map.clear();
       ds_term.clear();
       ds_term_node.clear();
+      ds_map_glob.clear();
     }
 
     bool contains_entry(const int & elem){

@@ -516,15 +516,16 @@ namespace ufo
 
       for (int cur_bnd = 1; cur_bnd <= bnd && !todoCHCs.empty(); cur_bnd++)
       {
-        int trees_checked_per_cur_bnd = 0;
+
 
         outs () << "new iter with cur_bnd = " << cur_bnd <<"\n";
         while (true)
         {
+        int trees_checked_per_cur_bnd = 0;
         bool last_iter = ruleManager.mkNewQuery(cur_bnd);
         assert(ruleManager.getNumQs() == 1);
         //ruleManager.print(ruleManager.chcs.back());
-        //ruleManager.print_parse_results();
+        ruleManager.print_parse_results();
         //ruleManager.print();
 
         // 1. restart tree generation (up to some depth, e.g., 10)
@@ -533,14 +534,17 @@ namespace ufo
         for (int depth = 1; depth <= tree_depth; depth++){
           // 2. enumerate all trees and call `isSat`
           vector<deep::chcTree *> trees;
+          if (trees_checked_per_cur_bnd > 30){outs() << "break: 30 trees checked \n"; break;}
+          if (chcG->trees.size() == 0) {break;}
           chcG->getNext(trees);
           outs() << "depth: " << depth << "; trees size : " << trees.size() << "\n";
           for (auto t : trees){
+            if (trees_checked_per_cur_bnd > 30){outs() << "break: 30 trees checked \n"; break;}
             auto el = t->get_set();
             bool is_potential_tree_with_todo = false;
             for (int c : el) {
               if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
-                is_potential_tree_with_todo = true;
+                is_potential_tree_with_todo = true; break;
               }
             }
             if (!is_potential_tree_with_todo) {
@@ -552,7 +556,7 @@ namespace ufo
             varCnt = 0;
             treeToSMT(t->getRoot());
             //ToDo: add dump of quiry to smt
-            serialize();
+            //serialize();
             auto res = u.isSat(ssa);
             trees_checked_per_cur_bnd++;
             time_t my_time = time(NULL);
@@ -650,7 +654,6 @@ namespace ufo
           }
         }
         chcG->clear();
-        if (trees_checked_per_cur_bnd > 30){trees_checked_per_cur_bnd = 0; break;}
 
         // GIVEN: at this point, there is only one query, and it is re-constructed in each iteration
         /* TODO:
