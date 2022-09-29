@@ -399,24 +399,23 @@ namespace ufo
 
     void fillTodos(set<int> & todoCHCs)
     {
+      for (int c = 0; c < ruleManager.chcs.size(); c++) {
+        string to_check = lexical_cast<string>(ruleManager.chcs[c].dstRelation);
+        if (to_check.find("block_") != std::string::npos)
+          todoCHCs.insert(c);
+      }
       // TODO: smarter
       // get points of control-flow divergence
       for (auto & d : ruleManager.decls) {
         vector<int> nums;
-        for (int c = 0; c < ruleManager.chcs.size(); c++) {
-          string to_check = lexical_cast<string>(ruleManager.chcs[c].dstRelation);
-          if (to_check.find("block_") != std::string::npos){todoCHCs.insert(c);}
-        }
         for (int c = 0; c < ruleManager.chcs.size(); c++)
           if (ruleManager.chcs[c].dstRelation == d->left()) nums.push_back(c);
 
         if (nums.size() > 1)
           for (auto &o: nums) {
             string to_check = lexical_cast<string>(ruleManager.chcs[o].dstRelation);
-            //todoCHCs.insert(o);
-            if (to_check.find("NULL") == std::string::npos
-            /*&& to_check.find("nondet_interface") == std::string::npos
-            && to_check.find("summary_") == std::string::npos*/){
+            if (to_check.find("NULL") == std::string::npos  // GF: why may it have NULL?
+            && to_check.find("interface") == std::string::npos){
               todoCHCs.insert(o);
             }
           }
