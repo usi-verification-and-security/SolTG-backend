@@ -605,16 +605,17 @@ namespace ufo
                 }
                 outs() << "\n";
               }
-              for (int fun = 0; fun < cur_bnd; fun++)
+              for (int fun = 0; fun <= cur_bnd; fun++)
               {
                 auto d = ruleManager.chcs.back().srcRelations[fun];
                 string name = lexical_cast<string>(d);
                 for (auto & a : signature)
                 {
                   // TODO: contract name
+                  // GF: is it resolved now?
                   for(auto & b : a.second)
                   {
-                    if (name.find(b.first) == -1) continue;
+                    if (fun != 0 && name.find(b.first) == -1) continue;
                     testfile << b.first << "(";
                     for (int i = 0; i < b.second.size(); i++)
                     {
@@ -633,6 +634,7 @@ namespace ufo
                       }
                     }
                     testfile << ")\n";
+                    if (fun == 0) break; // constructor goes first, so we exit fast
                   }
                 }
               }
