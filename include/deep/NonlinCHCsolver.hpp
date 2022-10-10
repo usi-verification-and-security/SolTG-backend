@@ -615,7 +615,8 @@ namespace ufo
                   // GF: is it resolved now?
                   for(auto & b : a.second)
                   {
-                    if (fun != 0 && name.find(b.first) == -1) continue;
+                    string to_find = "_function_" + b.first + "__";
+                    if (fun != 0 && name.find(to_find) == -1) continue;
                     testfile << b.first << "(";
                     for (int i = 0; i < b.second.size(); i++)
                     {
