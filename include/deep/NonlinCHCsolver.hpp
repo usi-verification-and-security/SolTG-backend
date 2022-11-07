@@ -615,7 +615,7 @@ namespace ufo
                   // GF: is it resolved now?
                   for(auto & b : a.second)
                   {
-                    string to_find = "_function_" + b.first + "__";
+                    string to_find = "_function_" + b.first;// + "__";
                     if (fun != 0 && name.find(to_find) == -1) continue;
                     testfile << b.first << "(";
                     for (int i = 0; i < b.second.size(); i++)
@@ -875,8 +875,8 @@ namespace ufo
       NonlinCHCsolver nonlin(ruleManager, signature);
       if (signature.size() != 1)
       {
-        outs () << "Only a single contract is supported, currently\n";
-        exit(0);
+        outs () << "multiple contracs case\n"; //"Only a single contract is supported, currently\n";
+        //exit(0);
       }
       //nonlin.setSignature(signature);
       // nonlin.solveIncrementally();
