@@ -1,0 +1,7 @@
+((append _FH_0' _FH_1')=_FH_2')
+(forall ((Lst)) ((append nil _FH_2')=_FH_2'))
+(forall (INT (Lst) (Lst)) ((append (cons x _FH_0) _FH_1)=(cons x (append _FH_0 _FH_1))))
+((rev2 _FH_3' _FH_4')=_FH_5')
+(forall ((Lst)) ((rev2 nil _FH_5')=_FH_5'))
+(forall (INT (Lst) (Lst)) ((rev2 (cons x _FH_3) _FH_4')=(rev2 _FH_3 (cons x _FH_4'))))
+sat

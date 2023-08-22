@@ -1,0 +1,7 @@
+((length _FH_0')=_FH_1')
+((length nil)=0)
+(forall (INT (Lst)) (true->((length (cons x _FH_0))=((length _FH_0)+1))))
+((butlast _FH_2')=_FH_3')
+((butlast nil)=nil)
+(forall (INT (Lst)) ((butlast (cons n _FH_2))=ite(_FH_2=nil, nil, (cons n (butlast _FH_2)))))
+sat

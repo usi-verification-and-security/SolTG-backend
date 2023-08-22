@@ -1,0 +1,4 @@
+((hsize _FH_0')=_FH_1')
+((hsize hleaf)=0)
+(forall (INT INT (Heap) (Heap)) (true->((hsize (heap k v _FH_0 _FH_3))=[+    (hsize _FH_0)    (hsize _FH_3)    1])))
+sat

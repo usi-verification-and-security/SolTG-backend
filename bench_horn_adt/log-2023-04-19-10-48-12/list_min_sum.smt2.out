@@ -1,0 +1,7 @@
+((min _FH_0')=_FH_1')
+((min nil)=0)
+(forall (INT (Lst)) ((min (cons x _FH_0))=ite((min _FH_0)<x, (min _FH_0), x)))
+((sum _FH_2')=_FH_3')
+((sum nil)=0)
+(forall (INT (Lst)) (true->((sum (cons x _FH_2))=(x+(sum _FH_2)))))
+sat

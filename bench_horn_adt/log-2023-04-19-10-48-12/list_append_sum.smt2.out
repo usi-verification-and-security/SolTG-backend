@@ -1,0 +1,7 @@
+((append _FH_0' _FH_1')=_FH_2')
+(forall ((Lst)) ((append nil _FH_2')=_FH_2'))
+(forall (INT (Lst) (Lst)) ((append (cons x _FH_0) _FH_1)=(cons x (append _FH_0 _FH_1))))
+((sum _FH_3')=_FH_4')
+((sum nil)=0)
+(forall (INT (Lst)) (true->((sum (cons x _FH_3))=(x+(sum _FH_3)))))
+sat

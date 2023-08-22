@@ -1,0 +1,7 @@
+((append _FH_0' _FH_1')=_FH_2')
+(forall ((Lst)) ((append nil _FH_2')=_FH_2'))
+(forall (INT (Lst) (Lst)) ((append (cons x _FH_0) _FH_1)=(cons x (append _FH_0 _FH_1))))
+((min _FH_3')=_FH_4')
+((min nil)=0)
+(forall (INT (Lst)) ((min (cons x _FH_3))=ite((min _FH_3)<x, (min _FH_3), x)))
+sat

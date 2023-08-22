@@ -1,0 +1,7 @@
+((min _FH_0')=_FH_1')
+((min nil)=0)
+(forall (INT (Lst)) ((min (cons x _FH_0))=ite((min _FH_0)<x, (min _FH_0), x)))
+((max _FH_2')=_FH_3')
+((max nil)=0)
+(forall (INT (Lst)) ((max (cons x _FH_2))=ite((max _FH_2)>x, (max _FH_2), x)))
+sat
