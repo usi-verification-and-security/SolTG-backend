@@ -142,6 +142,8 @@ namespace ufo
                     else it = lits.erase(it);
                 }
                 substsMap[exp] = conjoin(lits, efac);
+                //TODO: Not sure if makes sense:
+                getLocalSkolems(m, exp, map, substsMap, modelMap, pr);
             }
 
             someEvals.push_back(modelMap);
@@ -744,6 +746,7 @@ namespace ufo
         return coreQE(fla, varsSet);
     }
 
+    //TODO: there is a diff with adt-chc, but Idk if there is smth missing from adt-chc
     template<typename Range> static Expr eliminateQuantifiers(Expr fla, Range& qVars, bool doArithm = true)
     {
         if (qVars.size() == 0) return fla;

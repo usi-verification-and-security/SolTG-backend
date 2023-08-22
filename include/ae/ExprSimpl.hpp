@@ -1,7 +1,7 @@
 #ifndef EXPRSIMPL__HPP__
 #define EXPRSIMPL__HPP__
 #include <assert.h>
-
+// TODO: Haven't parsed to the end, maybe additional time needs to be spent here
 #include "ufo/Smt/EZ3.hh"
 
 using namespace std;
@@ -2128,7 +2128,13 @@ namespace ufo
             return boolConst(new_name);
         else if (isOpX<ARRAY_TY>(t))
             return mkConst(new_name, mk<ARRAY_TY> (t->left(), t->right()));
-
+        else if (isAdtConst(var))
+        {
+          ExprVector type;
+          type.push_back(var->last()->last());
+          Expr e = fapp(fdecl (new_name, type));
+          return e;
+        }
         else return NULL;
     }
 

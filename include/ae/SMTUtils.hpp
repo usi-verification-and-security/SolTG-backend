@@ -117,6 +117,7 @@ namespace ufo
         can_get_model = false;
         return true;
       }
+      // TODO: cycle is here in ADT_CHC
       else
       {
         lastCand = conjoin(cnjs, efac);
@@ -482,7 +483,30 @@ namespace ufo
       return exp;
     }
 
-    template <typename Range1, typename Range2, typename Range3> bool
+    inline static string varType (Expr var)
+    {
+      if (bind::isIntConst(var))
+        return "Int";
+      else if (bind::isRealConst(var))
+        return "Real";
+      else if (bind::isBoolConst(var))
+        return "Bool";
+      else if (bind::isAdtConst(var))
+      {
+        string str = lexical_cast<string>(var->last()->last());
+        return str.substr(1, str.length()-2);
+      }
+      else if (bind::isConst<ARRAY_TY> (var))
+      {
+        Expr name = mkTerm<string> ("", var->getFactory());
+        Expr s1 = bind::mkConst(name, var->last()->right()->left());
+        Expr s2 = bind::mkConst(name, var->last()->right()->right());
+        return string("(Array ") + varType(s1) + string(" ") + varType(s2) + string(")");
+      }
+      else return "";
+    }
+
+      template <typename Range1, typename Range2, typename Range3> bool
     splitUnsatSets(Range1 & src, Range2 & dst1, Range3 & dst2)
     {
       if (isSat(src)) return false;

@@ -3029,7 +3029,23 @@ namespace expr
     {
         assert(s.size() == t.size());
         RAVALL rav(&s, &t);
-        return dagVisit (rav, exp);
+        Expr tmp = dagVisit (rav, exp);
+        if (tmp == exp) return exp;
+        else return replaceAll(tmp, s, t);
+    }
+
+    inline Expr replaceAll (Expr exp, ExprMap& m, bool rec = true, int iter = 0)
+    {
+      if (iter == 1000)
+      {
+        std::cout << "WARNING: possible inifinite recursion in replaceAll\n";
+        return exp;
+      }
+      if (m.empty()) return exp;
+      RAVALLM rav(&m);
+      Expr tmp = dagVisit (rav, exp);
+      if (tmp == exp || !rec) return tmp;
+      else return replaceAll(tmp, m, rec, iter+1);
     }
 
     // pairwise replacing

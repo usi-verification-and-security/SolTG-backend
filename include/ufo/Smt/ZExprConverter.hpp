@@ -34,6 +34,8 @@ namespace ufo
 
   };
 
+    static Expr left;
+    ExprVector subexpr;
 
   template <typename M>
   struct BasicExprMarshal
@@ -74,6 +76,8 @@ namespace ufo
 	res = reinterpret_cast<Z3_ast> (Z3_mk_real_sort (ctx));
       else if (isOpX<BOOL_TY> (e))
 	res = reinterpret_cast<Z3_ast> (Z3_mk_bool_sort (ctx));
+      else if (isOpX<AD_TY> (e))
+  res = reinterpret_cast<Z3_ast> (Z3_mk_int_sort (ctx)); // GF: hack for now
       else if (isOpX<ARRAY_TY> (e))
       {
         z3::ast _idx_sort (marshal (e->left (), ctx, cache, seen));
@@ -509,8 +513,8 @@ namespace ufo
   {
     template <typename C>
     static Expr unmarshal (const z3::ast &z,
-			   ExprFactory &efac, C &cache,
-			   ast_expr_map &seen)
+                           ExprFactory &efac, C &cache, ast_expr_map &seen,
+                           std::vector<std::string> &adts_seen, std::vector<Expr> &adts, std::vector<Expr> &accessors)
     {
       z3::context &ctx = z.ctx ();
 
@@ -567,15 +571,48 @@ namespace ufo
                                     (ctx, Z3_get_array_sort_range (ctx, sort))),
                            efac, cache, seen);
               return sort::arrayTy (domain, range);
+        case Z3_DATATYPE_SORT:
+        {
+          unsigned num = Z3_get_datatype_sort_num_constructors(ctx, sort);
+          while (num > 0) {
+            num--;
+            auto c = Z3_get_datatype_sort_constructor(ctx, sort, num);
+            unsigned num_accessors = Z3_get_domain_size(ctx, c);
+
+            while(num_accessors > 0){
+              num_accessors--;
+              auto as = Z3_get_datatype_sort_constructor_accessor(ctx, sort, num, num_accessors);
+            }
+          }
+          std::string name = Z3_get_symbol_string(ctx, Z3_get_sort_name(ctx, sort));
+          Expr adt_name = mkTerm<std::string> (name, efac);
+          if (find(adts_seen.begin(), adts_seen.end(), name) == adts_seen.end())
+          {
+            adts_seen.push_back(name);
+            for (int i = 0; i < Z3_get_datatype_sort_num_constructors(ctx, sort); i++)
+            {
+              Z3_func_decl decl = Z3_get_datatype_sort_constructor(ctx, sort, i);
+              Z3_ast zdecl = Z3_func_decl_to_ast(ctx, decl);
+              adts.push_back(unmarshal(z3::ast(ctx, zdecl), efac, cache, seen, adts_seen, adts, accessors));
+            }
+          }
+          return sort::adTy (adt_name);
+        }
 	    default:
-	      assert (0 && "Unsupported sort");
+        std::string name = Z3_get_symbol_string(ctx, Z3_get_sort_name(ctx, sort));
+        Expr adt_name = mkTerm<std::string> (name, efac);
+        if (find(adts_seen.begin(), adts_seen.end(), name) == adts_seen.end())
+        {
+          adts_seen.push_back(name);
+        }
+        return sort::adTy (adt_name);
 	    }
 	}
       else if (kind == Z3_VAR_AST)
 	{
 	  unsigned idx = Z3_get_index_value (ctx, z);
           z3::ast zsort (ctx, Z3_sort_to_ast (ctx, Z3_get_sort (ctx, z)));
-          Expr sort = unmarshal (zsort, efac, cache, seen);
+          Expr sort = unmarshal (zsort, efac, cache, seen, adts_seen, adts, accessors);
           return bind::bvar (idx, sort);
 	}
 
@@ -606,15 +643,15 @@ namespace ufo
 	    {
 	      Z3_sort sort = Z3_get_domain  (ctx, fdecl, p);
 	      type.push_back
-		(unmarshal (z3::ast (ctx, Z3_sort_to_ast (ctx, sort)),
-			    efac, cache, seen));
+        (unmarshal (z3::ast (ctx, Z3_sort_to_ast (ctx, sort)),
+                    efac, cache, seen, adts_seen, adts, accessors));
 	    }
 
 	  type.push_back
-	    (unmarshal (z3::ast (ctx,
-				 Z3_sort_to_ast (ctx,
-						 Z3_get_range (ctx, fdecl))),
-				     efac, cache, seen));
+            (unmarshal (z3::ast (ctx,
+                                 Z3_sort_to_ast (ctx,
+                                                 Z3_get_range (ctx, fdecl))),
+                        efac, cache, seen, adts_seen, adts, accessors));
 
 	  return bind::fdecl (name, type);
 	}
@@ -630,11 +667,11 @@ namespace ufo
                                                0, nullptr,
                                                Z3_get_quantifier_bound_sort (ctx, z, i));
           z3::ast zdecl (ctx, Z3_func_decl_to_ast (ctx, decl));
-          args.push_back (unmarshal (zdecl, efac, cache, seen));
+          args.push_back (unmarshal (zdecl, efac, cache, seen, adts_seen, adts, accessors));
           assert (args.back ().get ());
         }
         args.push_back (unmarshal (z3::ast (ctx, Z3_get_quantifier_body (ctx, z)),
-                                   efac, cache, seen));
+                                   efac, cache, seen, adts_seen, adts, accessors));
         return Z3_is_quantifier_forall (ctx, z) ?
           mknary<FORALL> (args) : mknary<EXISTS> (args);
       }
@@ -653,36 +690,36 @@ namespace ufo
 	  assert (Z3_get_app_num_args (ctx, app) == 1);
 	  return mk<NEG> (unmarshal
 			  (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-				    efac, cache, seen));
+				    efac, cache, seen, adts_seen, adts, accessors));
     	}
       if (dkind == Z3_OP_UMINUS)
 	return mk<UN_MINUS> (unmarshal
 			     (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-			      efac, cache, seen));
+			      efac, cache, seen, adts_seen, adts, accessors));
 
       // XXX ignore to_real and to_int operators
       if (dkind == Z3_OP_TO_REAL || dkind == Z3_OP_TO_INT)
         return unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-                          efac, cache, seen);
+                          efac, cache, seen, adts_seen, adts, accessors));
       
       if (dkind == Z3_OP_BNOT)
         return mk<BNOT> (unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-                                    efac, cache, seen));
+                                    efac, cache, seen, adts_seen, adts, accessors));
       if (dkind == Z3_OP_BNEG)
         return mk<BNEG> (unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-                                    efac, cache, seen));
+                                    efac, cache, seen, adts_seen, adts, accessors));
       if (dkind == Z3_OP_BREDAND)
         return mk<BREDAND> (unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-                                       efac, cache, seen));
+                                       efac, cache, seen, adts_seen, adts, accessors));
       if (dkind == Z3_OP_BREDOR)
         return mk<BREDOR> (unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-                                      efac, cache, seen));
+                                      efac, cache, seen, adts_seen, adts, accessors));
       if (dkind == Z3_OP_SIGN_EXT || dkind == Z3_OP_ZERO_EXT)
       {
         Expr sort = bv::bvsort (Z3_get_bv_sort_size (ctx, Z3_get_sort (ctx, z)), 
                                 efac);
         Expr arg = unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-                              efac, cache, seen);
+                              efac, cache, seen, adts_seen, adts, accessors));
         switch (dkind)
         {
         case Z3_OP_SIGN_EXT:
@@ -696,7 +733,7 @@ namespace ufo
       if (dkind == Z3_OP_EXTRACT)
       {
         Expr arg = unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-                              efac, cache, seen);
+                              efac, cache, seen, adts_seen, adts, accessors));
 
         Z3_func_decl d = Z3_get_app_decl (ctx, app);
         unsigned high = Z3_get_decl_int_parameter (ctx, d, 0);
@@ -725,19 +762,71 @@ namespace ufo
       
       Expr e;
       ExprVector args;
-      for (size_t i = 0; i < (size_t)Z3_get_app_num_args (ctx, app); i++)
-	args.push_back (unmarshal
-			(z3::ast(ctx, Z3_get_app_arg(ctx, app, i)), efac, cache, seen));
+      for (size_t i = 0; i < (size_t)Z3_get_app_num_args (ctx, app); i++){
+        // TODO: Disequality, constructor inside constructor(maybe), IF then else
+        if(dkind == Z3_OP_EQ && i == 1 && Z3_get_decl_kind (ctx, Z3_get_app_decl (ctx, Z3_to_app(ctx, z3::ast(ctx, Z3_get_app_arg(ctx, app, i))))) == Z3_OP_DT_CONSTRUCTOR){
+          left = args[0];
+        }
+        args.push_back (unmarshal
+                                (z3::ast(ctx, Z3_get_app_arg(ctx, app, i)), efac, cache, seen, adts_seen, adts, accessors));
+      }
 
       /** newly introduced Z3 symbol */
-      if (dkind == Z3_OP_UNINTERPRETED)
-	{
-	  Expr res = bind::fapp (unmarshal (z3::func_decl (ctx, fdecl),
-					    efac, cache, seen), args);
-	  // -- XXX maybe use seen instead. not sure what is best.
-	  cache.insert (typename C::value_type (z, res));
-	  return res;
-	}
+      if (dkind == Z3_OP_DT_CONSTRUCTOR )
+      {
+        if (left != NULL) {
+          Z3_sort sort = Z3_get_sort (ctx, z);
+          unsigned num = Z3_get_datatype_sort_num_constructors(ctx, sort);
+          while (num > 0) {
+            num--;
+            auto c = Z3_get_datatype_sort_constructor(ctx, sort, num);
+            unsigned num_accessors = Z3_get_domain_size(ctx, c);
+            if(c != fdecl){
+              continue;
+            }
+
+            while(num_accessors > 0){
+              num_accessors--;
+              auto as = Z3_get_datatype_sort_constructor_accessor(ctx, sort, num, num_accessors);
+              ExprVector eq;
+              // Put value from the constructor into equality
+              eq.push_back (bind::fapp (unmarshal (z3::func_decl (ctx, as),
+                                                   efac, cache, seen, adts_seen, adts, accessors), { left }));
+              eq.push_back (args[num_accessors]);
+
+              accessors.push_back(bind::fname((unmarshal (z3::func_decl (ctx, as),
+                                                          efac, cache, seen, adts_seen, adts, accessors))));
+              // accessor(data) = value
+              subexpr.push_back(mknary<EQ> (eq.begin(), eq.end()));
+            }
+          }
+        }
+
+        Expr res = bind::fapp (unmarshal (z3::func_decl (ctx, fdecl),
+                                          efac, cache, seen, adts_seen, adts, accessors), args);
+        cache.insert (typename C::value_type (z, res));
+        left = NULL;
+        return res;
+      }
+
+      if (dkind == Z3_OP_UNINTERPRETED) {
+        Expr res = bind::fapp (unmarshal (z3::func_decl (ctx, fdecl),
+                                          efac, cache, seen, adts_seen, adts, accessors), args);
+        // -- XXX maybe use seen instead. not sure what is best.
+        cache.insert (typename C::value_type (z, res));
+        return res;
+      }
+
+      if (dkind == Z3_OP_DT_ACCESSOR) {
+        Z3_sort srt = Z3_get_sort(ctx, z);
+        Z3_func_decl acc = Z3_get_datatype_sort_constructor_accessor(ctx, srt,1,1);
+        Expr res = bind::fapp (unmarshal (z3::func_decl (ctx, fdecl),
+                                          efac, cache, seen, adts_seen, adts, accessors), args);
+        accessors.push_back(bind::fname(res));
+//           -- XXX maybe use seen instead. not sure what is best.
+        cache.insert (typename C::value_type (z, res));
+        return res;
+      }
 
       switch (dkind)
 	{
@@ -759,9 +848,15 @@ namespace ufo
 	case Z3_OP_IMPLIES:
 	  e =  mknary<IMPL> (args.begin(), args.end());
 	  break;
-	case Z3_OP_EQ:
-	  e =  mknary<EQ> (args.begin(), args.end());
-	  break;
+  case Z3_OP_EQ:
+    e =  mknary<EQ> (args.begin(), args.end());
+    if(subexpr.size() > 0){
+      subexpr.push_back(e);
+
+      e = mknary<AND>(subexpr.begin(), subexpr.end());
+      subexpr.clear();
+    }
+    break;
 	case Z3_OP_LT:
 	  e =  mknary<LT> (args.begin(), args.end());
 	  break;
@@ -805,7 +900,7 @@ namespace ufo
             Expr domain = unmarshal
               (z3::ast (ctx, Z3_sort_to_ast (ctx,
                                              Z3_get_array_sort_domain (ctx, sort))),
-               efac, cache, seen);
+               efac, cache, seen, adts_seen, adts, accessors);
             
             e = op::array::constArray (domain, args[0]);
           }
