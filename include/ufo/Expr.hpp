@@ -3049,11 +3049,11 @@ namespace expr
     }
 
     // pairwise replacing
-    inline Expr replaceAll (Expr exp, ExprMap& m)
-    {
-        RAVALLM rav(m);
-        return dagVisit (rav, exp);
-    }
+//    inline Expr replaceAll (Expr exp, ExprMap& m)
+//    {
+//        RAVALLM rav(m);
+//        return dagVisit (rav, exp);
+//    }
 
     /** Replace all occurrences of s by t while simplifying the result */
     inline Expr replaceAllSimplify (Expr exp, Expr s, Expr t)
