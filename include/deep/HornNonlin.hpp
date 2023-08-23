@@ -365,12 +365,12 @@ namespace ufo
 //      ZFixedPoint<EZ3> &fp = *m_fp;
 //      fp.loadFPfromFile(smt);
 
-      for (auto r1: cnjs)
+      for (auto r: cnjs)
       {
         chcs.push_back(HornRuleExt());
         HornRuleExt& hr = chcs.back();
 
-        Expr r = normalize(r1, hr);
+        normalize(r, hr);
         if (r == NULL)
         {
           chcs.pop_back();
