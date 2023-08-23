@@ -349,7 +349,7 @@ namespace ufo
       else prune();
     }
 
-    void parse(string smt, bool removeQuery = false)
+    void parse(string smt_file, bool removeQuery = false)
     {
       Expr e = z3_from_smtlib_file (m_z3, smt_file);
       for (auto & a : m_z3.getAdtConstructors()) {

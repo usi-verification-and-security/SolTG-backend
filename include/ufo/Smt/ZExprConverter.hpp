@@ -642,13 +642,11 @@ namespace ufo
 	  for (unsigned p = 0; p < Z3_get_domain_size (ctx, fdecl); ++p)
 	    {
 	      Z3_sort sort = Z3_get_domain  (ctx, fdecl, p);
-	      type.push_back
-        (unmarshal (z3::ast (ctx, Z3_sort_to_ast (ctx, sort)),
+	      type.push_back(unmarshal (z3::ast (ctx, Z3_sort_to_ast (ctx, sort)),
                     efac, cache, seen, adts_seen, adts, accessors));
 	    }
 
-	  type.push_back
-            (unmarshal (z3::ast (ctx,
+	  type.push_back(unmarshal (z3::ast (ctx,
                                  Z3_sort_to_ast (ctx,
                                                  Z3_get_range (ctx, fdecl))),
                         efac, cache, seen, adts_seen, adts, accessors));
@@ -688,19 +686,17 @@ namespace ufo
       if (dkind == Z3_OP_NOT)
 	{
 	  assert (Z3_get_app_num_args (ctx, app) == 1);
-	  return mk<NEG> (unmarshal
-			  (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
+	  return mk<NEG> (unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
 				    efac, cache, seen, adts_seen, adts, accessors));
     	}
       if (dkind == Z3_OP_UMINUS)
-	return mk<UN_MINUS> (unmarshal
-			     (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
+	return mk<UN_MINUS> (unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
 			      efac, cache, seen, adts_seen, adts, accessors));
 
       // XXX ignore to_real and to_int operators
       if (dkind == Z3_OP_TO_REAL || dkind == Z3_OP_TO_INT)
-        return unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-                          efac, cache, seen, adts_seen, adts, accessors));
+        return unmarshal(z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
+                          efac, cache, seen, adts_seen, adts, accessors);
       
       if (dkind == Z3_OP_BNOT)
         return mk<BNOT> (unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
@@ -719,7 +715,7 @@ namespace ufo
         Expr sort = bv::bvsort (Z3_get_bv_sort_size (ctx, Z3_get_sort (ctx, z)), 
                                 efac);
         Expr arg = unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-                              efac, cache, seen, adts_seen, adts, accessors));
+                              efac, cache, seen, adts_seen, adts, accessors);
         switch (dkind)
         {
         case Z3_OP_SIGN_EXT:
@@ -733,7 +729,7 @@ namespace ufo
       if (dkind == Z3_OP_EXTRACT)
       {
         Expr arg = unmarshal (z3::ast (ctx, Z3_get_app_arg (ctx, app, 0)),
-                              efac, cache, seen, adts_seen, adts, accessors));
+                              efac, cache, seen, adts_seen, adts, accessors);
 
         Z3_func_decl d = Z3_get_app_decl (ctx, app);
         unsigned high = Z3_get_decl_int_parameter (ctx, d, 0);
