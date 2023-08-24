@@ -856,7 +856,7 @@ namespace ufo
 //      };
   };
 
-    inline void testgen(string smt, map<string, map<string, vector<string>>>& signature, unsigned maxAttempts, unsigned to,
+    inline void testgen(char* smt, map<string, map<string, vector<string>>>& signature, unsigned maxAttempts, unsigned to,
                     bool freqs, bool aggp, bool enableDataLearning, bool doElim,
                     bool doDisj, int doProp, bool dAllMbp, bool dAddProp, bool dAddDat,
                     bool dStrenMbp, bool toSkip, int invMode, int lookahead,

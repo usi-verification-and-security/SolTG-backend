@@ -179,7 +179,7 @@ int main (int argc, char ** argv)
     if (d_m || d_p || d_d || d_s) do_disj = true;
     if (do_disj) do_dl = true;
 
-    testgen(string(argv[argc-1]), signature, max_attempts, to, densecode, aggressivepruning,
+    testgen(argv[argc-1], signature, max_attempts, to, densecode, aggressivepruning,
             do_dl, do_elim, do_disj, do_prop, d_m, d_p, d_d, d_s,
             to_skip, invMode, lookahead, lb, lmax, prio, debug);
     return 0;
