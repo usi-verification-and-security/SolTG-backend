@@ -564,12 +564,12 @@ namespace ufo
                 unmarshal (z3::ast (ctx, 
                                     Z3_sort_to_ast 
                                     (ctx, Z3_get_array_sort_domain (ctx, sort))),
-                           efac, cache, seen);
+                           efac, cache, seen, adts_seen, adts, accessors);
               range = 
                 unmarshal (z3::ast (ctx, 
                                     Z3_sort_to_ast 
                                     (ctx, Z3_get_array_sort_range (ctx, sort))),
-                           efac, cache, seen);
+                           efac, cache, seen, adts_seen, adts, accessors);
               return sort::arrayTy (domain, range);
         case Z3_DATATYPE_SORT:
         {
@@ -743,7 +743,7 @@ namespace ufo
         z3::ast zdecl 
           (ctx, Z3_func_decl_to_ast (ctx, 
                                      Z3_get_as_array_func_decl (ctx, z)));
-        return mk<AS_ARRAY> (unmarshal (zdecl, efac, cache, seen));
+        return mk<AS_ARRAY> (unmarshal (zdecl, efac, cache, seen, adts_seen, adts, accessors));
       }
 
       {
