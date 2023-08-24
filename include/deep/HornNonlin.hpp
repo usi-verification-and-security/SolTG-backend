@@ -602,9 +602,11 @@ namespace ufo
 
             Expr body = r->arg(0);
             Expr head = r->arg(1);
+
             vector<ExprVector> origSrcSymbs;
             ExprSet lin;
             splitBody(body, origSrcSymbs, hr.srcRelations, lin);
+            preprocess(body, hr.locVars, origSrcSymbs, hr.srcRelations, lin);
             if (hr.srcRelations.size() == 0)
             {
               if (hasUninterp(body))
