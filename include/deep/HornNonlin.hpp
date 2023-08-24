@@ -721,6 +721,36 @@ namespace ufo
           for (int i = 0; i < chcs.size(); i++)
             incms[chcs[i].dstRelation].push_back(i);
 
+                index_fact_chc = -1;
+      // find: index_cycle_chc
+      for (int i = 0; i < chcs.size(); i++)
+      {
+        string name = lexical_cast<string>(chcs[i].dstRelation);
+        if (name.find("nondet_interface") == std::string::npos &&
+            find (chcs[i].srcRelations.begin(), chcs[i].srcRelations.end(),
+            chcs[i].dstRelation) != chcs[i].srcRelations.end())
+        {
+          index_cycle_chc.push_back(i);
+          outs () << "cycle found (#" << i << "):\n";
+          print(chcs[i]);
+        }
+      }
+
+      assert(!index_cycle_chc.empty());
+
+      // find fact now:
+      for (int i = 0; i < chcs.size(); i++)
+      {
+        if (find(index_cycle_chc.begin(), index_cycle_chc.end(), i) !=
+                 index_cycle_chc.end()) continue;
+        if (chcs[i].dstRelation == chcs[index_cycle_chc[0]].dstRelation)
+        {
+           index_fact_chc = i;
+           outs () << "fact found (#" << i << "):\n";
+           print(chcs[i]);
+           break;
+        }
+      }
         }
 
     vector<vector<int>> cur_batch;
