@@ -177,7 +177,7 @@ namespace ufo
 
     void addDecl (Expr a)
     {
-      if (invVars[a->arg(0)].empty())
+      if (invVars[a].size() == 0)
       {
         decls.insert(a);
         for (int i = 1; i < a->arity()-1; i++)
@@ -190,8 +190,6 @@ namespace ufo
             errs() << "Argument #" << i << " of " << a << " is not supported\n";
             exit(1);
           }
-//          Expr var = fapp (constDecl (new_name, a->arg(i)));
-//          invVars[a->arg(0)].push_back(var);
           Expr var;
           if (isOpX<INT_TY> (a->arg(i)))
               var = bind::intConst(new_name);
@@ -213,7 +211,7 @@ namespace ufo
       }
     }
 
-    bool normalize (Expr& r, HornRuleExt& hr)
+    Expr normalize (Expr& r, HornRuleExt& hr)
     {
       r = regularizeQF(r);
 
@@ -252,14 +250,14 @@ namespace ufo
       {
         if (isOpX<TRUE>(r->right()))
         {
-          return false;
+          return NULL;
         }
         r = mk<IMPL>(mk<AND>(r->left(), mk<NEG>(r->right())), mk<FALSE>(m_efac));
       }
 
       if (!isOpX<IMPL>(r)) r = mk<IMPL>(mk<TRUE>(m_efac), r);
 
-      return true;
+      return r;
     }
 
     bool hasOnlyInduct(Expr rel, vector<int>& indexes)
@@ -349,235 +347,381 @@ namespace ufo
       else prune();
     }
 
-    void parse(char *smt_file, bool removeQuery = false)
-    {
-      Expr e = z3_from_smtlib_file (m_z3, smt_file);
-      for (auto & a : m_z3.getAdtConstructors()) {
-        constructors.push_back(regularizeQF(a));
-      }
-      ExprSet cnjs;
-      getConj(e, cnjs);
-      unitPropagation(cnjs);
+//    void parse(char *smt_file, bool removeQuery = false)
+//    {
+//      Expr e = z3_from_smtlib_file (m_z3, smt_file);
+//      for (auto & a : m_z3.getAdtConstructors()) {
+//        constructors.push_back(regularizeQF(a));
+//      }
+//      ExprSet cnjs;
+//      getConj(e, cnjs);
+//      unitPropagation(cnjs);
+//
+////      infile = smt;
+////      std::unique_ptr<ufo::ZFixedPoint <EZ3> > m_fp;
+////      m_fp.reset (new ZFixedPoint<EZ3> (m_z3));
+////      ZFixedPoint<EZ3> &fp = *m_fp;
+////      fp.loadFPfromFile(smt);
+//
+//      for (auto r1: cnjs)
+//      {
+//        chcs.push_back(HornRuleExt());
+//        HornRuleExt& hr = chcs.back();
+//
+//        Expr r = normalize(r1, hr);
+//        if (r == NULL)
+//        {
+//          chcs.pop_back();
+//          continue;
+//        }
+//
+//        Expr body = r->arg(0);
+//        Expr head = r->arg(1);
+//
+//        vector<ExprVector> origSrcSymbs;
+//        ExprSet lin;
+//        preprocess(body, hr.locVars, origSrcSymbs, hr.srcRelations, lin);
+//        // TODO: Not sure if I can do it consecutively
+//        splitBody(body, origSrcSymbs, hr.srcRelations, lin);
+//        if (hr.srcRelations.size() == 0)
+//        {
+//          if (hasUninterp(body))
+//          {
+//            errs () << "Unsupported format\n";
+//            errs () << "   " << *body << "\n";
+//            exit (0);
+//          }
+//        }
+//
+//        hr.isFact = hr.srcRelations.empty();
+//
+//        if (isOpX<FAPP>(head))
+//        {
+//          if (head->arg(0)->arity() == 2 && !hr.isFact)
+//          {
+//            if (!addFailDecl(head->arg(0)->arg(0)))
+//            {
+//              chcs.pop_back();
+//              continue;
+//            }
+//          }
+//          else
+//          {
+//            addDecl(head->arg(0));
+//          }
+//          hr.head = head->arg(0);
+//          hr.dstRelation = hr.head->arg(0);
+//        }
+//        else
+//        {
+//          if (!isOpX<FALSE>(head)) body = mk<AND>(body, mk<NEG>(head));
+//
+//          if (!addFailDecl(mk<FALSE>(m_efac)))
+//          {
+//            chcs.pop_back();
+//            continue;
+//          }
+//          hr.head = mk<FALSE>(m_efac);
+//          hr.dstRelation = mk<FALSE>(m_efac);
+//        }
+//
+//        hr.isQuery = (hr.dstRelation == failDecl);
+//        if (removeQuery && hr.isQuery)
+//        {
+//          chcs.pop_back();
+//          continue;
+//        }
+//        hr.isInductive = (hr.srcRelations.size() == 1 && hr.srcRelations[0] == hr.dstRelation);
+//        if (hr.isQuery) qCHCNum = chcs.size() - 1;
+//
+//        ExprVector allOrigSymbs;
+//        for (auto & a : origSrcSymbs) for (auto & b : a) allOrigSymbs.push_back(b);
+//        ExprVector origDstSymbs;
+//        if (!hr.isQuery)
+//        {
+//          for (auto it = head->args_begin()+1, end = head->args_end(); it != end; ++it)
+//            origDstSymbs.push_back(*it);
+//        }
+//        allOrigSymbs.insert(allOrigSymbs.end(), origDstSymbs.begin(), origDstSymbs.end());
+//        simplBoolReplCnj(allOrigSymbs, lin); // perhaps, not a very important optimization now; consider removing
+//        hr.body = conjoin(lin, m_efac);
+//
+//        vector<ExprVector> tmp;
+//        // we may have several applications of the same predicate symbol in the body:
+//        for (int i = 0; i < hr.srcRelations.size(); i++)
+//        {
+//          auto & a = hr.srcRelations[i];
+//          ExprVector tmp1;
+//          for (int j = 0; j < i; j++)
+//          {
+//            if (hr.srcRelations[i] == hr.srcRelations[j])
+//            {
+//              for (int k = 0; k < invVars[a].size(); k++)
+//              {
+//                Expr new_name = mkTerm<string> (varname + to_string(++total_var_cnt), m_efac);
+//                tmp1.push_back(cloneVar(invVars[a][k], new_name));
+//              }
+//              break;
+//            }
+//          }
+//          if (tmp1.empty())
+//          {
+//            tmp1 = invVars[a];
+//          }
+//          tmp.push_back(tmp1);
+//        }
+//        hr.assignVarsAndRewrite (origSrcSymbs, tmp,
+//                                 origDstSymbs, invVars[hr.dstRelation]);
+//
+//        if ((isOpX<TRUE>(hr.body) && !hr.isQuery) ||
+//            (hr.srcRelations.size() == 0 && hr.isQuery))
+//        {
+//          // TODO: maybe needed var r1 to iterate and r to change
+//          extras.push_back(r);
+//          chcs.pop_back();
+//          continue;
+//        }
+//       // hr.body = simpleQE(hr.body, hr.locVars);
+//
+//        // GF: ideally, hr.locVars should be empty after QE,
+//        // but the QE procedure is imperfect, so
+//
+//        // Should keep non-adt variables using in adt constructors
+//        ExprSet cnjsSet;
+//        getConj(hr.body, cnjsSet);
+//        for (auto cnj : cnjsSet) {
+//          if (isOpX<EQ>(cnj)) {
+//            Expr l = bind::fname(cnj->left());
+//            Expr r = bind::fname(cnj->right());
+//            if (std::find(constructors.begin(), constructors.end(), l) != constructors.end()) {
+//              for (int i = 0; i < cnj->left()->arity(); ++i) {
+//                Expr var = cnj->left()->arg(i);
+//                if (!isAdtConst(var)) {
+//                  hr.locVars.erase(std::remove(hr.locVars.begin(), hr.locVars.end(), var), hr.locVars.end());
+//                }
+//              }
+//            }
+//            if (std::find(constructors.begin(), constructors.end(), r) != constructors.end()) {
+//              for (int i = 0; i < cnj->right()->arity(); ++i) {
+//                Expr var = cnj->right()->arg(i);
+//                if (!isAdtConst(var)) {
+//                  hr.locVars.erase(std::remove(hr.locVars.begin(), hr.locVars.end(), var), hr.locVars.end());
+//                }
+//              }
+//            }
+//          }
+//        }
+//
+//        hr.body = simpleQE(hr.body, hr.locVars);
+//
+//        ExprVector body_vars;
+//        expr::filter (hr.body, bind::IsConst(), std::inserter (body_vars, body_vars.begin ()));
+//        for (auto it = hr.locVars.begin(); it != hr.locVars.end(); )
+//        {
+//          if (find(body_vars.begin(), body_vars.end(), *it) == body_vars.end())
+//            it = hr.locVars.erase(it);
+//          else ++it;
+//        }
+//      }
+//
+//      for (int i = 0; i < chcs.size(); i++) {
+//          expr_id[chcs[i].dstRelation] = i;
+//          incms[chcs[i].dstRelation].push_back(i);
+//      }
+//      // TODO: not sure about line 528 and simplifications
+//      prune();
+//
+//      index_fact_chc = -1;
+//      // find: index_cycle_chc
+//      for (int i = 0; i < chcs.size(); i++)
+//      {
+//        string name = lexical_cast<string>(chcs[i].dstRelation);
+//        if (name.find("nondet_interface") == std::string::npos &&
+//            find (chcs[i].srcRelations.begin(), chcs[i].srcRelations.end(),
+//            chcs[i].dstRelation) != chcs[i].srcRelations.end())
+//        {
+//          index_cycle_chc.push_back(i);
+//          outs () << "cycle found (#" << i << "):\n";
+//          print(chcs[i]);
+//        }
+//      }
+//
+//      assert(!index_cycle_chc.empty());
+//
+//      // find fact now:
+//      for (int i = 0; i < chcs.size(); i++)
+//      {
+//        if (find(index_cycle_chc.begin(), index_cycle_chc.end(), i) !=
+//                 index_cycle_chc.end()) continue;
+//        if (chcs[i].dstRelation == chcs[index_cycle_chc[0]].dstRelation)
+//        {
+//           index_fact_chc = i;
+//           outs () << "fact found (#" << i << "):\n";
+//           print(chcs[i]);
+//           break;
+//        }
+//      }
+//
+//      // GF: want to find mutual dependencies here? Then this is incorrect
+//      // if (index_cycle_chc == -1){
+//      //   // try to find first cycle ToDo: need to recheck
+//      //   set<int> tmp_srs;
+//      //   for (int i = 0; i < chcs.size(); i++) {
+//      //     if (tmp_srs.find(chcs[i].dstRelation->getId()) != tmp_srs.end()){
+//      //       index_cycle_chc = i;
+//      //     }
+//      //     for(auto srs: chcs[i].srcRelations){
+//      //       tmp_srs.insert(srs->getId());
+//      //     }
+//      //   }
+//      // }
+//    }
 
-//      infile = smt;
-//      std::unique_ptr<ufo::ZFixedPoint <EZ3> > m_fp;
-//      m_fp.reset (new ZFixedPoint<EZ3> (m_z3));
-//      ZFixedPoint<EZ3> &fp = *m_fp;
-//      fp.loadFPfromFile(smt);
-
-      for (auto r: cnjs)
-      {
-        chcs.push_back(HornRuleExt());
-        HornRuleExt& hr = chcs.back();
-
-        normalize(r, hr);
-        if (r == NULL)
+        void parse(char *smt_file, bool removeQuery = false)
         {
-          chcs.pop_back();
-          continue;
-        }
-
-        Expr body = r->arg(0);
-        Expr head = r->arg(1);
-
-        vector<ExprVector> origSrcSymbs;
-        ExprSet lin;
-        preprocess(body, hr.locVars, origSrcSymbs, hr.srcRelations, lin);
-        // TODO: Not sure if I can do it consecutively
-        splitBody(body, origSrcSymbs, hr.srcRelations, lin);
-        if (hr.srcRelations.size() == 0)
-        {
-          if (hasUninterp(body))
-          {
-            errs () << "Unsupported format\n";
-            errs () << "   " << *body << "\n";
-            exit (0);
+          // GF: this entry part is different from the original implementation
+          // (since the fixpoint format does not support ADTs)
+          Expr e = z3_from_smtlib_file (m_z3, smt_file);
+          for (auto & a : m_z3.getAdtConstructors()) {
+            constructors.push_back(regularizeQF(a));
           }
-        }
+          ExprSet cnjs;
+          getConj(e, cnjs);
+          unitPropagation(cnjs);
 
-        hr.isFact = hr.srcRelations.empty();
-
-        if (isOpX<FAPP>(head))
-        {
-          if (head->arg(0)->arity() == 2 && !hr.isFact)
+          for (auto r1: cnjs)
           {
-            if (!addFailDecl(head->arg(0)->arg(0)))
+            chcs.push_back(HornRuleExt());
+            HornRuleExt& hr = chcs.back();
+            Expr r = normalize(r1, hr);
+            if (r == NULL)
             {
               chcs.pop_back();
               continue;
             }
-          }
-          else
-          {
-            addDecl(head->arg(0));
-          }
-          hr.head = head->arg(0);
-          hr.dstRelation = hr.head->arg(0);
-        }
-        else
-        {
-          if (!isOpX<FALSE>(head)) body = mk<AND>(body, mk<NEG>(head));
 
-          if (!addFailDecl(mk<FALSE>(m_efac)))
-          {
-            chcs.pop_back();
-            continue;
-          }
-          hr.head = mk<FALSE>(m_efac);
-          hr.dstRelation = mk<FALSE>(m_efac);
-        }
-
-        hr.isQuery = (hr.dstRelation == failDecl);
-        if (removeQuery && hr.isQuery)
-        {
-          chcs.pop_back();
-          continue;
-        }
-        hr.isInductive = (hr.srcRelations.size() == 1 && hr.srcRelations[0] == hr.dstRelation);
-        if (hr.isQuery) qCHCNum = chcs.size() - 1;
-
-        ExprVector allOrigSymbs;
-        for (auto & a : origSrcSymbs) for (auto & b : a) allOrigSymbs.push_back(b);
-        ExprVector origDstSymbs;
-        if (!hr.isQuery)
-        {
-          for (auto it = head->args_begin()+1, end = head->args_end(); it != end; ++it)
-            origDstSymbs.push_back(*it);
-        }
-        allOrigSymbs.insert(allOrigSymbs.end(), origDstSymbs.begin(), origDstSymbs.end());
-        simplBoolReplCnj(allOrigSymbs, lin); // perhaps, not a very important optimization now; consider removing
-        hr.body = conjoin(lin, m_efac);
-
-        vector<ExprVector> tmp;
-        // we may have several applications of the same predicate symbol in the body:
-        for (int i = 0; i < hr.srcRelations.size(); i++)
-        {
-          auto & a = hr.srcRelations[i];
-          ExprVector tmp1;
-          for (int j = 0; j < i; j++)
-          {
-            if (hr.srcRelations[i] == hr.srcRelations[j])
+            Expr body = r->arg(0);
+            Expr head = r->arg(1);
+            vector<ExprVector> origSrcSymbs;
+            ExprSet lin;
+            splitBody(body, origSrcSymbs, hr.srcRelations, lin);
+            if (hr.srcRelations.size() == 0)
             {
-              for (int k = 0; k < invVars[a].size(); k++)
+              if (hasUninterp(body))
               {
-                Expr new_name = mkTerm<string> (varname + to_string(++total_var_cnt), m_efac);
-                tmp1.push_back(cloneVar(invVars[a][k], new_name));
+//            errs () << "Unsupported format\n";
+//            errs () << "   " << *body << "\n";
+//            exit (1);
+                lin.clear();
               }
-              break;
             }
-          }
-          if (tmp1.empty())
-          {
-            tmp1 = invVars[a];
-          }
-          tmp.push_back(tmp1);
-        }
-        hr.assignVarsAndRewrite (origSrcSymbs, tmp,
-                                 origDstSymbs, invVars[hr.dstRelation]);
 
-        if ((isOpX<TRUE>(hr.body) && !hr.isQuery) ||
-            (hr.srcRelations.size() == 0 && hr.isQuery))
-        {
-          // TODO: maybe needed var r1 to iterate and r to change
-          extras.push_back(r);
-          chcs.pop_back();
-          continue;
-        }
-       // hr.body = simpleQE(hr.body, hr.locVars);
+            hr.isFact = hr.srcRelations.empty();
 
-        // GF: ideally, hr.locVars should be empty after QE,
-        // but the QE procedure is imperfect, so
+            if (isOpX<FAPP>(head))
+            {
+              addDecl(head->arg(0));
+              hr.dstRelation = head->arg(0);
+            }
+            else
+            {
+              if (!isOpX<FALSE>(head)) body = mk<AND>(body, mk<NEG>(head));
+              addFailDecl(mk<FALSE>(m_efac));
+              hr.dstRelation = mk<FALSE>(m_efac);
+            }
 
-        // Should keep non-adt variables using in adt constructors
-        ExprSet cnjsSet;
-        getConj(hr.body, cnjsSet);
-        for (auto cnj : cnjsSet) {
-          if (isOpX<EQ>(cnj)) {
-            Expr l = bind::fname(cnj->left());
-            Expr r = bind::fname(cnj->right());
-            if (std::find(constructors.begin(), constructors.end(), l) != constructors.end()) {
-              for (int i = 0; i < cnj->left()->arity(); ++i) {
-                Expr var = cnj->left()->arg(i);
-                if (!isAdtConst(var)) {
-                  hr.locVars.erase(std::remove(hr.locVars.begin(), hr.locVars.end(), var), hr.locVars.end());
+            hr.isQuery = (hr.dstRelation == failDecl);
+            hr.isInductive = (hr.srcRelations.size() == 1 && hr.srcRelations[0] == hr.dstRelation);
+            if (hr.isQuery) qCHCNum = chcs.size() - 1;
+
+            ExprVector allOrigSymbs;
+            for (auto & a : origSrcSymbs) for (auto & b : a) allOrigSymbs.push_back(b);
+            ExprVector origDstSymbs;
+            if (!hr.isQuery)
+            {
+              for (auto it = head->args_begin()+1, end = head->args_end(); it != end; ++it)
+                origDstSymbs.push_back(*it);
+            }
+            allOrigSymbs.insert(allOrigSymbs.end(), origDstSymbs.begin(), origDstSymbs.end());
+            //simplBoolReplCnj(allOrigSymbs, lin); // perhaps, not a very important optimization now; consider removing
+            hr.body = conjoin(lin, m_efac);
+
+            vector<ExprVector> tmp;
+            // we may have several applications of the same predicate symbol in the body:
+            for (int i = 0; i < hr.srcRelations.size(); i++)
+            {
+              auto & a = hr.srcRelations[i];
+              ExprVector tmp1;
+              for (int j = 0; j < i; j++)
+              {
+                if (hr.srcRelations[i] == hr.srcRelations[j])
+                {
+                  for (int k = 0; k < invVars[a].size(); k++)
+                  {
+                    Expr new_name = mkTerm<string> (varname + to_string(++total_var_cnt), m_efac);
+                    tmp1.push_back(cloneVar(invVars[a][k], new_name));
+                  }
+                  break;
+                }
+              }
+              if (tmp1.empty())
+              {
+                tmp1 = invVars[a];
+              }
+              tmp.push_back(tmp1);
+            }
+            hr.assignVarsAndRewrite (origSrcSymbs, tmp,
+                                     origDstSymbs, invVars[hr.dstRelation]);
+
+            if ((isOpX<TRUE>(hr.body) && !hr.isQuery) ||
+                (hr.srcRelations.size() == 0 && hr.isQuery))
+            {
+              extras.push_back(r1);
+              chcs.pop_back();
+              continue;
+            }
+
+            // Should keep non-adt variables using in adt constructors
+            ExprSet cnjsSet;
+            getConj(hr.body, cnjsSet);
+            for (auto cnj : cnjsSet) {
+              if (isOpX<EQ>(cnj)) {
+                Expr l = bind::fname(cnj->left());
+                Expr r = bind::fname(cnj->right());
+                if (std::find(constructors.begin(), constructors.end(), l) != constructors.end()) {
+                  for (int i = 0; i < cnj->left()->arity(); ++i) {
+                    Expr var = cnj->left()->arg(i);
+                    if (!isAdtConst(var)) {
+                      hr.locVars.erase(std::remove(hr.locVars.begin(), hr.locVars.end(), var), hr.locVars.end());
+                    }
+                  }
+                }
+                if (std::find(constructors.begin(), constructors.end(), r) != constructors.end()) {
+                  for (int i = 0; i < cnj->right()->arity(); ++i) {
+                    Expr var = cnj->right()->arg(i);
+                    if (!isAdtConst(var)) {
+                      hr.locVars.erase(std::remove(hr.locVars.begin(), hr.locVars.end(), var), hr.locVars.end());
+                    }
+                  }
                 }
               }
             }
-            if (std::find(constructors.begin(), constructors.end(), r) != constructors.end()) {
-              for (int i = 0; i < cnj->right()->arity(); ++i) {
-                Expr var = cnj->right()->arg(i);
-                if (!isAdtConst(var)) {
-                  hr.locVars.erase(std::remove(hr.locVars.begin(), hr.locVars.end(), var), hr.locVars.end());
-                }
-              }
+
+            hr.body = simpleQE(hr.body, hr.locVars);
+            ExprVector body_vars;
+            expr::filter (hr.body, bind::IsConst(), std::inserter (body_vars, body_vars.begin ()));
+            for (auto it = hr.locVars.begin(); it != hr.locVars.end(); )
+            {
+              if (find(body_vars.begin(), body_vars.end(), *it) == body_vars.end())
+                it = hr.locVars.erase(it);
+              else ++it;
             }
           }
+
+          for (int i = 0; i < chcs.size(); i++)
+            incms[chcs[i].dstRelation].push_back(i);
+
         }
-
-        hr.body = simpleQE(hr.body, hr.locVars);
-
-        ExprVector body_vars;
-        expr::filter (hr.body, bind::IsConst(), std::inserter (body_vars, body_vars.begin ()));
-        for (auto it = hr.locVars.begin(); it != hr.locVars.end(); )
-        {
-          if (find(body_vars.begin(), body_vars.end(), *it) == body_vars.end())
-            it = hr.locVars.erase(it);
-          else ++it;
-        }
-      }
-
-      for (int i = 0; i < chcs.size(); i++) {
-          expr_id[chcs[i].dstRelation] = i;
-          incms[chcs[i].dstRelation].push_back(i);
-      }
-      // TODO: not sure about line 528 and simplifications
-      prune();
-
-      index_fact_chc = -1;
-      // find: index_cycle_chc
-      for (int i = 0; i < chcs.size(); i++)
-      {
-        string name = lexical_cast<string>(chcs[i].dstRelation);
-        if (name.find("nondet_interface") == std::string::npos &&
-            find (chcs[i].srcRelations.begin(), chcs[i].srcRelations.end(),
-            chcs[i].dstRelation) != chcs[i].srcRelations.end())
-        {
-          index_cycle_chc.push_back(i);
-          outs () << "cycle found (#" << i << "):\n";
-          print(chcs[i]);
-        }
-      }
-
-      assert(!index_cycle_chc.empty());
-
-      // find fact now:
-      for (int i = 0; i < chcs.size(); i++)
-      {
-        if (find(index_cycle_chc.begin(), index_cycle_chc.end(), i) !=
-                 index_cycle_chc.end()) continue;
-        if (chcs[i].dstRelation == chcs[index_cycle_chc[0]].dstRelation)
-        {
-           index_fact_chc = i;
-           outs () << "fact found (#" << i << "):\n";
-           print(chcs[i]);
-           break;
-        }
-      }
-
-      // GF: want to find mutual dependencies here? Then this is incorrect
-      // if (index_cycle_chc == -1){
-      //   // try to find first cycle ToDo: need to recheck
-      //   set<int> tmp_srs;
-      //   for (int i = 0; i < chcs.size(); i++) {
-      //     if (tmp_srs.find(chcs[i].dstRelation->getId()) != tmp_srs.end()){
-      //       index_cycle_chc = i;
-      //     }
-      //     for(auto srs: chcs[i].srcRelations){
-      //       tmp_srs.insert(srs->getId());
-      //     }
-      //   }
-      // }
-    }
 
     vector<vector<int>> cur_batch;
     void findCombs(int num, vector<vector<int>>& res)
