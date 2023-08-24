@@ -349,7 +349,7 @@ namespace ufo
       else prune();
     }
 
-    void parse(string smt_file, bool removeQuery = false)
+    void parse(char *smt_file, bool removeQuery = false)
     {
       Expr e = z3_from_smtlib_file (m_z3, smt_file);
       for (auto & a : m_z3.getAdtConstructors()) {
@@ -478,8 +478,8 @@ namespace ufo
         if ((isOpX<TRUE>(hr.body) && !hr.isQuery) ||
             (hr.srcRelations.size() == 0 && hr.isQuery))
         {
-          // TODO: add extras
-          extras.push_back(r1);
+          // TODO: maybe needed var r1 to iterate and r to change
+          extras.push_back(r);
           chcs.pop_back();
           continue;
         }
