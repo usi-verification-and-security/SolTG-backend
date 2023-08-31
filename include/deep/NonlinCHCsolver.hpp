@@ -554,6 +554,8 @@ namespace ufo
             tree_map.clear();
             varCnt = 0;
             treeToSMT(t->getRoot());
+
+
             //ToDo: add dump of quiry to smt
             //serialize();
             auto res = u.isSat(ssa);

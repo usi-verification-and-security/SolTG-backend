@@ -606,7 +606,7 @@ namespace ufo
             vector<ExprVector> origSrcSymbs;
             ExprSet lin;
             splitBody(body, origSrcSymbs, hr.srcRelations, lin);
-            preprocess(body, hr.locVars, origSrcSymbs, hr.srcRelations, lin);
+//            preprocess(body, hr.locVars, origSrcSymbs, hr.srcRelations, lin);
             if (hr.srcRelations.size() == 0)
             {
               if (hasUninterp(body))
@@ -720,8 +720,10 @@ namespace ufo
             }
           }
 
-          for (int i = 0; i < chcs.size(); i++)
+          for (int i = 0; i < chcs.size(); i++) {
+            expr_id[chcs[i].dstRelation] = i;
             incms[chcs[i].dstRelation].push_back(i);
+          }
 
                 index_fact_chc = -1;
       // find: index_cycle_chc
