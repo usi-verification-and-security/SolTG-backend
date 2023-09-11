@@ -526,13 +526,16 @@ namespace deep {
     }
 
     void init_termination_tree(int x, node &n){
+      if(ds_map.find(x) == ds_map.end()){
+        assert(false);
+      }
       for (auto e: ds_map.find(x)->second){
         n.chc_index = e.chc_index;
         for (int k: e.srs){
           if (k != -1){
             if (ds_term_node.find(k) != ds_term_node.end()){
               n.children.push_back(&ds_term_node.find(k)->second);
-            }else {
+            } else {
               node tmp{k};
               init_termination_tree(k, tmp);
               n.children.push_back(&tmp);
@@ -581,7 +584,7 @@ namespace deep {
       map<int, bool>::iterator it2;
       for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)
       {
-        //outs() << it2->first << " : " << it2->second << "\n";
+        outs() << it2->first << " : " << it2->second << "\n";
       }
 
       for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)
