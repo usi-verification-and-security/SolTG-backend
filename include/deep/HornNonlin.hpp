@@ -123,7 +123,7 @@ namespace ufo
               assert(isOpX<FDECL>(cnj->left()));
               Expr rel = cnj->arg(0);
               addDecl(rel);
-              srcRelations.push_back(rel);
+              srcRelations.push_back(rel->arg(0));
               ExprVector tmp;
               for (auto it = cnj->args_begin()+1, end = cnj->args_end(); it != end; ++it)
                   tmp.push_back(*it);
@@ -177,7 +177,7 @@ namespace ufo
 
     void addDecl (Expr a)
     {
-      if (invVars[a].size() == 0)
+      if (invVars[a->arg(0)].empty())
       {
         decls.insert(a);
         for (int i = 1; i < a->arity()-1; i++)
@@ -206,7 +206,7 @@ namespace ufo
           }
           else
               assert(0);
-          invVars[a].push_back(var);
+          invVars[a->arg(0)].push_back(var);
         }
       }
     }
@@ -307,10 +307,16 @@ namespace ufo
       int sz = decls.size();
       set<int> toSkip;
       computeIncms();
-
+      for (int i = 0; i < chcs.size(); i++) {
+        outs() << "CHC: " << i << "\n";
+        for (auto &s: chcs[i].srcRelations) {
+          outs() << "Src relation" << s << "\n";
+        }
+      }
       for (auto it = decls.begin(); it != decls.end(); )
       {
         Expr d = *it;
+        outs() << "D: " << d->left() << "\n";
 
         vector<int> indexes;
         bool toDel = hasOnlyInduct(d->left(), indexes);
@@ -324,6 +330,8 @@ namespace ufo
             bool isInBody = false;
             for (auto & s : chcs[i].srcRelations)
             {
+              outs() << "Src relation: " << s->getId() << s << "\n";
+              outs() << "D: " << d->left()->getId() << d->left() << "\n";
               if (s == d->left())
               {
                 isInBody = true;
@@ -634,7 +642,8 @@ namespace ufo
           {
             addDecl(head->arg(0));
           }
-          hr.dstRelation = head->arg(0);
+          hr.head = head->arg(0);
+          hr.dstRelation = hr.head->arg(0);
         }
         else
         {
@@ -661,7 +670,7 @@ namespace ufo
             origDstSymbs.push_back(*it);
         }
         allOrigSymbs.insert(allOrigSymbs.end(), origDstSymbs.begin(), origDstSymbs.end());
-        //simplBoolReplCnj(allOrigSymbs, lin); // perhaps, not a very important optimization now; consider removing
+        simplBoolReplCnj(allOrigSymbs, lin); // perhaps, not a very important optimization now; consider removing
         hr.body = conjoin(lin, m_efac);
 
         vector<ExprVector> tmp;
@@ -740,6 +749,8 @@ namespace ufo
         expr_id[chcs[i].dstRelation] = i;
         incms[chcs[i].dstRelation].push_back(i);
       }
+
+      prune();
 
       index_fact_chc = -1;
       // find: index_cycle_chc
