@@ -307,16 +307,9 @@ namespace ufo
       int sz = decls.size();
       set<int> toSkip;
       computeIncms();
-      for (int i = 0; i < chcs.size(); i++) {
-        outs() << "CHC: " << i << "\n";
-        for (auto &s: chcs[i].srcRelations) {
-          outs() << "Src relation" << s << "\n";
-        }
-      }
       for (auto it = decls.begin(); it != decls.end(); )
       {
         Expr d = *it;
-        outs() << "D: " << d->left() << "\n";
 
         vector<int> indexes;
         bool toDel = hasOnlyInduct(d->left(), indexes);
@@ -330,8 +323,6 @@ namespace ufo
             bool isInBody = false;
             for (auto & s : chcs[i].srcRelations)
             {
-              outs() << "Src relation: " << s->getId() << s << "\n";
-              outs() << "D: " << d->left()->getId() << d->left() << "\n";
               if (s == d->left())
               {
                 isInBody = true;

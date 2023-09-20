@@ -329,8 +329,8 @@ namespace ufo
       }
 
       auto & chc = ruleManager.chcs[t->chc_index];
-      // outs () << "\nssa-ing: ";
-      // ruleManager.print(chc);
+       outs () << "\nssa-ing: ";
+       ruleManager.print(chc);
 
       if (lev == 1)
       {
@@ -358,6 +358,7 @@ namespace ufo
           for (int j = 0; j < chc.srcVars[i].size(); j++)
           {
             Expr new_name = mkTerm<string>("_tg_" + to_string(varCnt++), m_efac);
+//            outs() << "Renaming: " << chc.srcVars[i][j] << " as " << new_name << "\n";
             vars.push_back(cloneVar(chc.srcVars[i][j], new_name));
           }
           body = replaceAll(body, chc.srcVars[i], vars);
@@ -558,6 +559,9 @@ namespace ufo
 
             //ToDo: add dump of quiry to smt
             //serialize();
+            for(auto e: ssa){
+              outs() << "Expr: " << (*e) << "\n";
+            }
             auto res = u.isSat(ssa);
             trees_checked_per_cur_bnd++;
             time_t my_time = time(NULL);
