@@ -341,6 +341,7 @@ namespace ufo
       }
 
       auto body = chc.body;
+      outs() << "Body: " << body << "\n";
       body = replaceAll(body, chc.dstVars, srcVars);
       ExprVector newLocs;
       for (auto & lv : chc.locVars)
@@ -362,6 +363,7 @@ namespace ufo
             vars.push_back(cloneVar(chc.srcVars[i][j], new_name));
           }
           body = replaceAll(body, chc.srcVars[i], vars);
+          outs() << "New Body: " << body << "\n";
           treeToSMT(t->children[i], lev+1, vars);
         }
       }
@@ -369,7 +371,7 @@ namespace ufo
       {
         for (auto & c : t->children) assert(c->chc_index == -1);
       }
-      //outs() << lev << ": " << t->chc_index  << ": " << body << "\n";
+      outs() << lev << ": " << t->chc_index  << ": " << body << "\n";
       ssa.push_back(body);
     }
 
