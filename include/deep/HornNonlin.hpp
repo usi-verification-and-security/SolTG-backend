@@ -688,8 +688,10 @@ namespace ufo
           }
           tmp.push_back(tmp1);
         }
+//        outs() << "Body1:" << chcs[0].body << "\n";
         hr.assignVarsAndRewrite (origSrcSymbs, tmp,
                                  origDstSymbs, invVars[hr.dstRelation]);
+//        outs() << "Body1:" << chcs[0].body << "\n";
 
         if ((isOpX<TRUE>(hr.body) && !hr.isQuery) ||
             (hr.srcRelations.size() == 0 && hr.isQuery))
