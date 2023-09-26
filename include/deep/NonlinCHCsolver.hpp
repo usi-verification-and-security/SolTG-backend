@@ -329,8 +329,8 @@ namespace ufo
       }
 
       auto & chc = ruleManager.chcs[t->chc_index];
-       outs () << "\nssa-ing: ";
-       ruleManager.print(chc);
+//       outs () << "\nssa-ing: ";
+//       ruleManager.print(chc);
 
       if (lev == 1)
       {
@@ -341,7 +341,7 @@ namespace ufo
       }
 
       auto body = chc.body;
-      outs() << "Body: " << body << "\n";
+//      outs() << "Body: " << body << "\n";
       body = replaceAll(body, chc.dstVars, srcVars);
       ExprVector newLocs;
       for (auto & lv : chc.locVars)
@@ -363,7 +363,7 @@ namespace ufo
             vars.push_back(cloneVar(chc.srcVars[i][j], new_name));
           }
           body = replaceAll(body, chc.srcVars[i], vars);
-          outs() << "New Body: " << body << "\n";
+//          outs() << "New Body: " << body << "\n";
           treeToSMT(t->children[i], lev+1, vars);
         }
       }
@@ -371,7 +371,7 @@ namespace ufo
       {
         for (auto & c : t->children) assert(c->chc_index == -1);
       }
-      outs() << lev << ": " << t->chc_index  << ": " << body << "\n";
+//      outs() << lev << ": " << t->chc_index  << ": " << body << "\n";
       ssa.push_back(body);
     }
 
@@ -561,9 +561,9 @@ namespace ufo
 
             //ToDo: add dump of quiry to smt
             //serialize();
-            for(auto e: ssa){
-              outs() << "Expr: " << (*e) << "\n";
-            }
+//            for(auto e: ssa){
+//              outs() << "Expr: " << (*e) << "\n";
+//            }
             auto res = u.isSat(ssa);
             trees_checked_per_cur_bnd++;
             time_t my_time = time(NULL);
