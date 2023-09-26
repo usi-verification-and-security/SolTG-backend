@@ -584,7 +584,7 @@ namespace deep {
       map<int, bool>::iterator it2;
       for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)
       {
-        outs() << it2->first << " : " << it2->second << "\n";
+//        outs() << it2->first << " : " << it2->second << "\n";
       }
 
       for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)
