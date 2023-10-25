@@ -743,8 +743,15 @@ namespace ufo
         incms[chcs[i].dstRelation].push_back(i);
       }
 
+      for (int i = 0; i < chcs.size(); i++) {
+        outs() << "Chc " << i << " :" << chcs[i].body << " => "  << chcs[i].head << "\n";
+      }
       prune();
 
+      outs() << "Post pruning assignments: \n";
+      for (int i = 0; i < chcs.size(); i++) {
+        outs() << "Chc " << i << " :" << chcs[i].body  << "=>"  << chcs[i].head << "\n";
+      }
       index_fact_chc = -1;
       // find: index_cycle_chc
       for (int i = 0; i < chcs.size(); i++)
