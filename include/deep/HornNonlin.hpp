@@ -46,16 +46,16 @@ namespace ufo
     bool isInductive;
     map<int, Expr> arg_names;
 
-    void assignVarsAndRewrite (vector<ExprVector>& _srcVars, vector<ExprVector>& invVarsSrc,
+    void assignVarsAndRewrite (ExprVector& _srcVars, vector<ExprVector>& invVarsSrc,
                                ExprVector& _dstVars, ExprVector& invVarsDst)
     {
       for (int i = 0; i < _srcVars.size(); i++)
       {
         ExprVector tmp;
-        for (int j = 0; j < _srcVars[i].size(); j++)
+        for (int j = 0; j < invVarsSrc[i].size(); j++)
         {
           tmp.push_back(invVarsSrc[i][j]);
-          body = mk<AND>(body, mk<EQ>(_srcVars[i][j], tmp[j]));
+          body = mk<AND>(body, mk<EQ>(_srcVars[i], tmp[j]));
         }
         srcVars.push_back(tmp);
       }
@@ -112,27 +112,62 @@ namespace ufo
       return false;
     }
 
-    void splitBody (Expr body, vector<ExprVector>& srcVars, ExprVector &srcRelations, ExprSet& lin)
-    {
-      getConj (body, lin);
-      for (auto c = lin.begin(); c != lin.end(); )
-      {
-          Expr cnj = *c;
-          if (isOpX<FAPP>(cnj))
+//    void splitBody (Expr body, vector<ExprVector>& srcVars, ExprVector &srcRelations, ExprSet& lin)
+//    {
+//      getConj (body, lin);
+//      for (auto c = lin.begin(); c != lin.end(); )
+//      {
+//          Expr cnj = *c;
+//          if (isOpX<FAPP>(cnj))
+//          {
+//              assert(isOpX<FDECL>(cnj->left()));
+//              Expr rel = cnj->arg(0);
+//              addDecl(rel);
+//              srcRelations.push_back(rel->arg(0));
+//              ExprVector tmp;
+//              for (auto it = cnj->args_begin()+1, end = cnj->args_end(); it != end; ++it)
+//                  tmp.push_back(*it);
+//              srcVars.push_back(tmp);
+//              c = lin.erase(c);
+//          }
+//          else ++c;
+//      }
+//    }
+
+        bool splitBody (HornRuleExt& hr, ExprVector& srcVars, ExprSet& lin)
+        {
+          getConj (hr.body, lin);
+          for (auto c = lin.begin(); c != lin.end(); )
           {
-              assert(isOpX<FDECL>(cnj->left()));
-              Expr rel = cnj->arg(0);
-              addDecl(rel);
-              srcRelations.push_back(rel->arg(0));
-              ExprVector tmp;
-              for (auto it = cnj->args_begin()+1, end = cnj->args_end(); it != end; ++it)
-                  tmp.push_back(*it);
-              srcVars.push_back(tmp);
-              c = lin.erase(c);
+            Expr cnj = *c;
+            if (isOpX<FAPP>(cnj) && isOpX<FDECL>(cnj->left()))
+            {
+              Expr rel = cnj->left();
+              if (find(decls.begin(), decls.end(), rel) == decls.end())
+              {
+                // uninterpreted pred with no def rules is found
+                // treat it FALSE
+                return false;
+              }
+              else
+              {
+                if (hr.srcRelations.size() != 0)
+                {
+//                  errs () << "Nonlinear CHC is currently unsupported: ["
+//                          << *hr.srcRelation << " /\\ " << *rel->left() << " -> "
+//                          << *hr.dstRelation << "]\n";
+                  exit(1);
+                }
+                hr.srcRelations.push_back(rel->arg(0));
+                for (auto it = cnj->args_begin()+1; it != cnj->args_end(); ++it)
+                  srcVars.push_back(*it);
+                c = lin.erase(c);
+              }
+            }
+            else ++c;
           }
-          else ++c;
-      }
-    }
+          return true;
+        }
 
     void preprocess (Expr term, ExprVector& locVars, vector<ExprVector>& srcVars, ExprVector &srcRelations, ExprSet& lin)
     {
@@ -576,24 +611,104 @@ namespace ufo
 //      // }
 //    }
 
-    void parse(char *smt_file, bool removeQuery = false)
+    void parse(string smt, bool removeQuery = false)
     {
       // GF: this entry part is different from the original implementation
       // (since the fixpoint format does not support ADTs)
-      Expr e = z3_from_smtlib_file (m_z3, smt_file);
-      for (auto & a : m_z3.getAdtConstructors()) {
-        constructors.push_back(regularizeQF(a));
-      }
-      ExprSet cnjs;
-      getConj(e, cnjs);
-      unitPropagation(cnjs);
+//      Expr e = z3_from_smtlib_file (m_z3, smt_file);
+//      for (auto & a : m_z3.getAdtConstructors()) {
+//        constructors.push_back(regularizeQF(a));
+//      }
+//      ExprSet cnjs;
+//      getConj(e, cnjs);
+//      unitPropagation(cnjs);
 
-      for (auto r1: cnjs)
+      if (debug > 0) outs () << "\nPARSING" << "\n=======\n";
+      std::unique_ptr<ufo::ZFixedPoint <EZ3> > m_fp;
+      m_fp.reset (new ZFixedPoint<EZ3> (m_z3));
+      ZFixedPoint<EZ3> &fp = *m_fp;
+      fp.loadFPfromFile(smt);
+      chcs.reserve(fp.m_rules.size());
+
+      ExprMap eqs;
+      for (auto it = fp.m_rules.begin(); it != fp.m_rules.end(); )
+      {
+        if (isOpX<EQ>(*it))
+        {
+          eqs[(*it)->left()->left()] = (*it)->right()->left();
+          it = fp.m_rules.erase(it);
+        }
+        else ++it;
+      }
+
+
+      for (auto &r: fp.m_rules)
       {
         chcs.push_back(HornRuleExt());
         HornRuleExt& hr = chcs.back();
-        Expr r = normalize(r1, hr);
-        if (r == NULL)
+        while (true)
+        {
+          auto r1 = replaceAll(r, eqs);
+          if (r == r1) break;
+          else r = r1;
+        }
+
+        if (!normalize(r, hr))
+        {
+          chcs.pop_back();
+          continue;
+        }
+
+//        filter (r, bind::IsConst(), inserter (origVrs, origVrs.begin()));
+        // small rewr:
+        if (isOpX<ITE>(r->last()))
+        {
+          hr.body = mk<IMPL>(mk<AND>(r->left(), r->last()->left()),
+                             r->last()->right());
+          chcs.push_back(chcs.back());
+          chcs.back().body = mk<IMPL>(mk<AND>(r->left(), mkNeg(r->last()->left())),
+                                      r->last()->last());
+        }
+        else
+        {
+          hr.body = r;
+        }
+      }
+
+
+      for (auto & hr : chcs)
+      {
+        Expr head = hr.body->right();
+        hr.body = hr.body->left();
+        if (isOpX<FAPP>(head))
+        {
+          if (head->left()->arity() == 2 &&
+              (find(fp.m_queries.begin(), fp.m_queries.end(), head) !=
+               fp.m_queries.end()))
+            addFailDecl(head->left()->left());
+          else
+            addDecl(head->left());
+          hr.dstRelation = head->left()->left();
+
+          for (auto it = head->args_begin()+1; it != head->args_end(); ++it)
+            hr.dstVars.push_back(*it); // to be rewritten later
+        }
+        else
+        {
+          if (!isOpX<FALSE>(head)) hr.body = mk<AND>(hr.body, mk<NEG>(head));
+          addFailDecl(mk<FALSE>(m_efac));
+          hr.dstRelation = mk<FALSE>(m_efac);
+        }
+      }
+
+      //TODO: Taken preprocessing from rnd, main cycle below not changed yet
+
+      for (auto &r: fp.m_rules)
+      {
+        chcs.push_back(HornRuleExt());
+        HornRuleExt& hr = chcs.back();
+
+        if (!normalize(r, hr))
         {
           chcs.pop_back();
           continue;
@@ -602,9 +717,10 @@ namespace ufo
         Expr body = r->arg(0);
         Expr head = r->arg(1);
 
-        vector<ExprVector> origSrcSymbs;
+        ExprVector origSrcSymbs;
+//        origSrcSymbs.push_back(new ExprVector());
         ExprSet lin;
-        splitBody(body, origSrcSymbs, hr.srcRelations, lin);
+        splitBody(hr, origSrcSymbs, lin);
 //            preprocess(body, hr.locVars, origSrcSymbs, hr.srcRelations, lin);
         if (hr.srcRelations.size() == 0)
         {
@@ -653,7 +769,7 @@ namespace ufo
         if (hr.isQuery) qCHCNum = chcs.size() - 1;
 
         ExprVector allOrigSymbs;
-        for (auto & a : origSrcSymbs) for (auto & b : a) allOrigSymbs.push_back(b);
+        for (auto & a : origSrcSymbs)  allOrigSymbs.push_back(a);
         ExprVector origDstSymbs;
         if (!hr.isQuery)
         {
@@ -696,7 +812,7 @@ namespace ufo
         if ((isOpX<TRUE>(hr.body) && !hr.isQuery) ||
             (hr.srcRelations.size() == 0 && hr.isQuery))
         {
-          extras.push_back(r1);
+          extras.push_back(r);
           chcs.pop_back();
           continue;
         }
