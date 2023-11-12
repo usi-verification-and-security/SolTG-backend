@@ -49,13 +49,15 @@ namespace ufo
     void assignVarsAndRewrite (ExprVector& _srcVars, vector<ExprVector>& invVarsSrc,
                                ExprVector& _dstVars, ExprVector& invVarsDst)
     {
-      for (int i = 0; i < _srcVars.size(); i++)
+      int counter = 0;
+      for (int i = 0; i < invVarsSrc.size(); i++)
       {
         ExprVector tmp;
         for (int j = 0; j < invVarsSrc[i].size(); j++)
         {
           tmp.push_back(invVarsSrc[i][j]);
-          body = mk<AND>(body, mk<EQ>(_srcVars[i], tmp[j]));
+          body = mk<AND>(body, mk<EQ>(_srcVars[counter], tmp[j]));
+          counter++;;
         }
         srcVars.push_back(tmp);
       }
@@ -112,104 +114,31 @@ namespace ufo
       return false;
     }
 
-//    void splitBody (Expr body, vector<ExprVector>& srcVars, ExprVector &srcRelations, ExprSet& lin)
-//    {
-//      getConj (body, lin);
-//      for (auto c = lin.begin(); c != lin.end(); )
-//      {
-//          Expr cnj = *c;
-//          if (isOpX<FAPP>(cnj))
-//          {
-//              assert(isOpX<FDECL>(cnj->left()));
-//              Expr rel = cnj->arg(0);
-//              addDecl(rel);
-//              srcRelations.push_back(rel->arg(0));
-//              ExprVector tmp;
-//              for (auto it = cnj->args_begin()+1, end = cnj->args_end(); it != end; ++it)
-//                  tmp.push_back(*it);
-//              srcVars.push_back(tmp);
-//              c = lin.erase(c);
-//          }
-//          else ++c;
-//      }
-//    }
 
-        bool splitBody (HornRuleExt& hr, ExprVector& srcVars, ExprSet& lin)
-        {
-          getConj (hr.body, lin);
-          for (auto c = lin.begin(); c != lin.end(); )
-          {
-            Expr cnj = *c;
-            if (isOpX<FAPP>(cnj) && isOpX<FDECL>(cnj->left()))
-            {
-              Expr rel = cnj->left();
-              if (find(decls.begin(), decls.end(), rel) == decls.end())
-              {
-                // uninterpreted pred with no def rules is found
-                // treat it FALSE
-                return false;
-              }
-              else
-              {
-                if (hr.srcRelations.size() != 0)
-                {
-//                  errs () << "Nonlinear CHC is currently unsupported: ["
-//                          << *hr.srcRelation << " /\\ " << *rel->left() << " -> "
-//                          << *hr.dstRelation << "]\n";
-                  exit(1);
-                }
-                hr.srcRelations.push_back(rel->arg(0));
-                for (auto it = cnj->args_begin()+1; it != cnj->args_end(); ++it)
-                  srcVars.push_back(*it);
-                c = lin.erase(c);
-              }
-            }
-            else ++c;
-          }
-          return true;
-        }
-
-    void preprocess (Expr term, ExprVector& locVars, vector<ExprVector>& srcVars, ExprVector &srcRelations, ExprSet& lin)
+    void splitBody (HornRuleExt& hr, ExprVector& srcVars, ExprSet& lin)
     {
-      if (isOpX<AND>(term))
+      getConj (hr.body, lin);
+      for (auto c = lin.begin(); c != lin.end(); )
       {
-        for (auto it = term->args_begin(), end = term->args_end(); it != end; ++it)
+        Expr cnj = *c;
+        if (isOpX<FAPP>(cnj) && find(hr.locVars.begin(), hr.locVars.end(), cnj) == hr.locVars.end())
         {
-          preprocess(*it, locVars, srcVars, srcRelations, lin);
-        }
-      }
-      else
-      {
-        if (bind::isBoolConst(term))
-        {
-          lin.insert(term);
-        }
-        if (isOpX<FAPP>(term) && find(locVars.begin(), locVars.end(), term) == locVars.end())
-        {
-          if (term->arity() > 0)
-          {
-            if (isOpX<FDECL>(term->arg(0)))
-            {
-              Expr rel = term->arg(0);
-              if (rel->arity() >= 2)
-              {
-                addDecl(rel);
-                srcRelations.push_back(rel->arg(0));
-                ExprVector tmp;
-                for (auto it = term->args_begin()+1, end = term->args_end(); it != end; ++it)
-                  tmp.push_back(*it);
-                srcVars.push_back(tmp);
-              }
+          if(hr.body->arity() > 0) {
+            assert(isOpX<FDECL>(cnj->left()));
+            Expr rel = cnj->left();
+            if (rel->arity() >= 2) {
+              addDecl(rel);
+              hr.srcRelations.push_back(rel->arg(0));
+              for (auto it = cnj->args_begin() + 1; it != cnj->args_end(); ++it)
+                srcVars.push_back(*it);
             }
+            c = lin.erase(c);
           }
         }
-        else
-        {
-          lin.insert(term);
-        }
+        else ++c;
       }
     }
-
+    int cct = 0;
     void addDecl (Expr a)
     {
       if (invVars[a->arg(0)].empty())
@@ -241,6 +170,7 @@ namespace ufo
           }
           else
               assert(0);
+          cct++;
           invVars[a->arg(0)].push_back(var);
         }
       }
@@ -339,277 +269,49 @@ namespace ufo
 
     void prune ()
     {
-      int sz = decls.size();
-      set<int> toSkip;
-      computeIncms();
-      for (auto it = decls.begin(); it != decls.end(); )
-      {
-        Expr d = *it;
+        int sz = decls.size();
+        set<int> toSkip;
+        computeIncms();
 
-        vector<int> indexes;
-        bool toDel = hasOnlyInduct(d->left(), indexes);
-        for (int i : indexes) toSkip.insert(i);
-
-        if (toDel || incms[d->left()].empty())
+        for (auto it = decls.begin(); it != decls.end(); )
         {
-          toDel = true;
-          for (int i = 0; i < chcs.size(); i++)
+          Expr d = *it;
+
+          vector<int> indexes;
+          bool toDel = hasOnlyInduct(d->left(), indexes);
+          for (int i : indexes) toSkip.insert(i);
+
+          if (toDel || incms[d->left()].empty())
           {
-            bool isInBody = false;
-            for (auto & s : chcs[i].srcRelations)
+            toDel = true;
+            for (int i = 0; i < chcs.size(); i++)
             {
-              if (s == d->left())
+              bool isInBody = false;
+              for (auto & s : chcs[i].srcRelations)
               {
-                isInBody = true;
-                break;
+                if (s == d->left())
+                {
+                  isInBody = true;
+                  break;
+                }
+              }
+              if (isInBody)
+              {
+                toSkip.insert(i);
               }
             }
-            if (isInBody)
-            {
-              toSkip.insert(i);
-            }
           }
+
+          if (toDel) it = decls.erase(it);
+          else ++it;
+        }
+        for (auto rit = toSkip.rbegin(); rit != toSkip.rend(); rit++) {
+          chcs.erase(chcs.begin() + *rit);
         }
 
-        if (toDel) it = decls.erase(it);
-        else ++it;
-      }
-      for (auto rit = toSkip.rbegin(); rit != toSkip.rend(); rit++)
-        chcs.erase(chcs.begin() + *rit);
-
-      if (sz == decls.size()) return;
-      else prune();
+        if (sz == decls.size()) return;
+        else prune();
     }
-
-//    void parse(char *smt_file, bool removeQuery = false)
-//    {
-//      Expr e = z3_from_smtlib_file (m_z3, smt_file);
-//      for (auto & a : m_z3.getAdtConstructors()) {
-//        constructors.push_back(regularizeQF(a));
-//      }
-//      ExprSet cnjs;
-//      getConj(e, cnjs);
-//      unitPropagation(cnjs);
-//
-////      infile = smt;
-////      std::unique_ptr<ufo::ZFixedPoint <EZ3> > m_fp;
-////      m_fp.reset (new ZFixedPoint<EZ3> (m_z3));
-////      ZFixedPoint<EZ3> &fp = *m_fp;
-////      fp.loadFPfromFile(smt);
-//
-//      for (auto r1: cnjs)
-//      {
-//        chcs.push_back(HornRuleExt());
-//        HornRuleExt& hr = chcs.back();
-//
-//        Expr r = normalize(r1, hr);
-//        if (r == NULL)
-//        {
-//          chcs.pop_back();
-//          continue;
-//        }
-//
-//        Expr body = r->arg(0);
-//        Expr head = r->arg(1);
-//
-//        vector<ExprVector> origSrcSymbs;
-//        ExprSet lin;
-//        preprocess(body, hr.locVars, origSrcSymbs, hr.srcRelations, lin);
-//        // TODO: Not sure if I can do it consecutively
-//        splitBody(body, origSrcSymbs, hr.srcRelations, lin);
-//        if (hr.srcRelations.size() == 0)
-//        {
-//          if (hasUninterp(body))
-//          {
-//            errs () << "Unsupported format\n";
-//            errs () << "   " << *body << "\n";
-//            exit (0);
-//          }
-//        }
-//
-//        hr.isFact = hr.srcRelations.empty();
-//
-//        if (isOpX<FAPP>(head))
-//        {
-//          if (head->arg(0)->arity() == 2 && !hr.isFact)
-//          {
-//            if (!addFailDecl(head->arg(0)->arg(0)))
-//            {
-//              chcs.pop_back();
-//              continue;
-//            }
-//          }
-//          else
-//          {
-//            addDecl(head->arg(0));
-//          }
-//          hr.head = head->arg(0);
-//          hr.dstRelation = hr.head->arg(0);
-//        }
-//        else
-//        {
-//          if (!isOpX<FALSE>(head)) body = mk<AND>(body, mk<NEG>(head));
-//
-//          if (!addFailDecl(mk<FALSE>(m_efac)))
-//          {
-//            chcs.pop_back();
-//            continue;
-//          }
-//          hr.head = mk<FALSE>(m_efac);
-//          hr.dstRelation = mk<FALSE>(m_efac);
-//        }
-//
-//        hr.isQuery = (hr.dstRelation == failDecl);
-//        if (removeQuery && hr.isQuery)
-//        {
-//          chcs.pop_back();
-//          continue;
-//        }
-//        hr.isInductive = (hr.srcRelations.size() == 1 && hr.srcRelations[0] == hr.dstRelation);
-//        if (hr.isQuery) qCHCNum = chcs.size() - 1;
-//
-//        ExprVector allOrigSymbs;
-//        for (auto & a : origSrcSymbs) for (auto & b : a) allOrigSymbs.push_back(b);
-//        ExprVector origDstSymbs;
-//        if (!hr.isQuery)
-//        {
-//          for (auto it = head->args_begin()+1, end = head->args_end(); it != end; ++it)
-//            origDstSymbs.push_back(*it);
-//        }
-//        allOrigSymbs.insert(allOrigSymbs.end(), origDstSymbs.begin(), origDstSymbs.end());
-//        simplBoolReplCnj(allOrigSymbs, lin); // perhaps, not a very important optimization now; consider removing
-//        hr.body = conjoin(lin, m_efac);
-//
-//        vector<ExprVector> tmp;
-//        // we may have several applications of the same predicate symbol in the body:
-//        for (int i = 0; i < hr.srcRelations.size(); i++)
-//        {
-//          auto & a = hr.srcRelations[i];
-//          ExprVector tmp1;
-//          for (int j = 0; j < i; j++)
-//          {
-//            if (hr.srcRelations[i] == hr.srcRelations[j])
-//            {
-//              for (int k = 0; k < invVars[a].size(); k++)
-//              {
-//                Expr new_name = mkTerm<string> (varname + to_string(++total_var_cnt), m_efac);
-//                tmp1.push_back(cloneVar(invVars[a][k], new_name));
-//              }
-//              break;
-//            }
-//          }
-//          if (tmp1.empty())
-//          {
-//            tmp1 = invVars[a];
-//          }
-//          tmp.push_back(tmp1);
-//        }
-//        hr.assignVarsAndRewrite (origSrcSymbs, tmp,
-//                                 origDstSymbs, invVars[hr.dstRelation]);
-//
-//        if ((isOpX<TRUE>(hr.body) && !hr.isQuery) ||
-//            (hr.srcRelations.size() == 0 && hr.isQuery))
-//        {
-//          // TODO: maybe needed var r1 to iterate and r to change
-//          extras.push_back(r);
-//          chcs.pop_back();
-//          continue;
-//        }
-//       // hr.body = simpleQE(hr.body, hr.locVars);
-//
-//        // GF: ideally, hr.locVars should be empty after QE,
-//        // but the QE procedure is imperfect, so
-//
-//        // Should keep non-adt variables using in adt constructors
-//        ExprSet cnjsSet;
-//        getConj(hr.body, cnjsSet);
-//        for (auto cnj : cnjsSet) {
-//          if (isOpX<EQ>(cnj)) {
-//            Expr l = bind::fname(cnj->left());
-//            Expr r = bind::fname(cnj->right());
-//            if (std::find(constructors.begin(), constructors.end(), l) != constructors.end()) {
-//              for (int i = 0; i < cnj->left()->arity(); ++i) {
-//                Expr var = cnj->left()->arg(i);
-//                if (!isAdtConst(var)) {
-//                  hr.locVars.erase(std::remove(hr.locVars.begin(), hr.locVars.end(), var), hr.locVars.end());
-//                }
-//              }
-//            }
-//            if (std::find(constructors.begin(), constructors.end(), r) != constructors.end()) {
-//              for (int i = 0; i < cnj->right()->arity(); ++i) {
-//                Expr var = cnj->right()->arg(i);
-//                if (!isAdtConst(var)) {
-//                  hr.locVars.erase(std::remove(hr.locVars.begin(), hr.locVars.end(), var), hr.locVars.end());
-//                }
-//              }
-//            }
-//          }
-//        }
-//
-//        hr.body = simpleQE(hr.body, hr.locVars);
-//
-//        ExprVector body_vars;
-//        expr::filter (hr.body, bind::IsConst(), std::inserter (body_vars, body_vars.begin ()));
-//        for (auto it = hr.locVars.begin(); it != hr.locVars.end(); )
-//        {
-//          if (find(body_vars.begin(), body_vars.end(), *it) == body_vars.end())
-//            it = hr.locVars.erase(it);
-//          else ++it;
-//        }
-//      }
-//
-//      for (int i = 0; i < chcs.size(); i++) {
-//          expr_id[chcs[i].dstRelation] = i;
-//          incms[chcs[i].dstRelation].push_back(i);
-//      }
-//      // TODO: not sure about line 528 and simplifications
-//      prune();
-//
-//      index_fact_chc = -1;
-//      // find: index_cycle_chc
-//      for (int i = 0; i < chcs.size(); i++)
-//      {
-//        string name = lexical_cast<string>(chcs[i].dstRelation);
-//        if (name.find("nondet_interface") == std::string::npos &&
-//            find (chcs[i].srcRelations.begin(), chcs[i].srcRelations.end(),
-//            chcs[i].dstRelation) != chcs[i].srcRelations.end())
-//        {
-//          index_cycle_chc.push_back(i);
-//          outs () << "cycle found (#" << i << "):\n";
-//          print(chcs[i]);
-//        }
-//      }
-//
-//      assert(!index_cycle_chc.empty());
-//
-//      // find fact now:
-//      for (int i = 0; i < chcs.size(); i++)
-//      {
-//        if (find(index_cycle_chc.begin(), index_cycle_chc.end(), i) !=
-//                 index_cycle_chc.end()) continue;
-//        if (chcs[i].dstRelation == chcs[index_cycle_chc[0]].dstRelation)
-//        {
-//           index_fact_chc = i;
-//           outs () << "fact found (#" << i << "):\n";
-//           print(chcs[i]);
-//           break;
-//        }
-//      }
-//
-//      // GF: want to find mutual dependencies here? Then this is incorrect
-//      // if (index_cycle_chc == -1){
-//      //   // try to find first cycle ToDo: need to recheck
-//      //   set<int> tmp_srs;
-//      //   for (int i = 0; i < chcs.size(); i++) {
-//      //     if (tmp_srs.find(chcs[i].dstRelation->getId()) != tmp_srs.end()){
-//      //       index_cycle_chc = i;
-//      //     }
-//      //     for(auto srs: chcs[i].srcRelations){
-//      //       tmp_srs.insert(srs->getId());
-//      //     }
-//      //   }
-//      // }
-//    }
 
     void parse(string smt, bool removeQuery = false)
     {
@@ -676,109 +378,132 @@ namespace ufo
       }
 
 
-      for (auto & hr : chcs)
+      for (auto it = chcs.begin(); it != chcs.end();)
       {
-        Expr head = hr.body->right();
+        HornRuleExt & hr = *it;
+        hr.head = hr.body->right();
         hr.body = hr.body->left();
-        if (isOpX<FAPP>(head))
-        {
-          if (head->left()->arity() == 2 &&
-              (find(fp.m_queries.begin(), fp.m_queries.end(), head) !=
-               fp.m_queries.end()))
-            addFailDecl(head->left()->left());
-          else
-            addDecl(head->left());
-          hr.dstRelation = head->left()->left();
-
-          for (auto it = head->args_begin()+1; it != head->args_end(); ++it)
-            hr.dstVars.push_back(*it); // to be rewritten later
-        }
-        else
-        {
-          if (!isOpX<FALSE>(head)) hr.body = mk<AND>(hr.body, mk<NEG>(head));
-          addFailDecl(mk<FALSE>(m_efac));
-          hr.dstRelation = mk<FALSE>(m_efac);
-        }
-      }
-
-      //TODO: Taken preprocessing from rnd, main cycle below not changed yet
-
-      for (auto &r: fp.m_rules)
-      {
-        chcs.push_back(HornRuleExt());
-        HornRuleExt& hr = chcs.back();
-
-        if (!normalize(r, hr))
-        {
-          chcs.pop_back();
-          continue;
-        }
-
-        Expr body = r->arg(0);
-        Expr head = r->arg(1);
-
-        ExprVector origSrcSymbs;
-//        origSrcSymbs.push_back(new ExprVector());
-        ExprSet lin;
-        splitBody(hr, origSrcSymbs, lin);
-//            preprocess(body, hr.locVars, origSrcSymbs, hr.srcRelations, lin);
-        if (hr.srcRelations.size() == 0)
-        {
-          if (hasUninterp(body))
-          {
-//            errs () << "Unsupported format\n";
-//            errs () << "   " << *body << "\n";
-//            exit (1);
-            lin.clear();
-          }
-        }
-
         hr.isFact = hr.srcRelations.empty();
-
-        if (isOpX<FAPP>(head))
+        if (isOpX<FAPP>(hr.head))
         {
-          if (head->arg(0)->arity() == 2 && !hr.isFact)
-          {
-            if (!addFailDecl(head->arg(0)->arg(0)))
-            {
-              chcs.pop_back();
+          if (hr.head->left()->arity() == 2 && hr.srcRelations.empty()) {
+//              (find(fp.m_queries.begin(), fp.m_queries.end(), hr.head) !=
+//               fp.m_queries.end()))
+            if (!addFailDecl(hr.head->left()->left())) {
+              it = chcs.erase(it);
               continue;
             }
           }
           else
-          {
-            addDecl(head->arg(0));
-          }
-          hr.head = head->arg(0);
-          hr.dstRelation = hr.head->arg(0);
+            addDecl(hr.head->left());
+
+
+          hr.dstRelation = hr.head->left()->left();
+//
+//          for (auto it = hr.head->args_begin()+1; it != hr.head->args_end(); ++it)
+//            hr.dstVars.push_back(*it); // to be rewritten later
         }
         else
         {
-          if (!isOpX<FALSE>(head)) body = mk<AND>(body, mk<NEG>(head));
-
-          if (!addFailDecl(mk<FALSE>(m_efac)))
-          {
-            chcs.pop_back();
+          if (!isOpX<FALSE>(hr.head)) hr.body = mk<AND>(hr.body, mk<NEG>(hr.head));
+          if (!addFailDecl(mk<FALSE>(m_efac))) {
+            it = chcs.erase(it);
             continue;
           }
+          //          addFailDecl(mk<FALSE>(m_efac));
           hr.dstRelation = mk<FALSE>(m_efac);
         }
+        ++it;
+      }
+
+      //TODO: Taken preprocessing from rnd, main cycle below not changed yet
+
+      for (auto it = chcs.begin(); it != chcs.end();)
+      {
+        ExprVector origSrcSymbs, origDstSymbs;
+        ExprSet lin;
+        HornRuleExt & hr = *it;
+
+
+
+        Expr head = hr.head;
+        Expr body = hr.body;
+
+        splitBody(hr, origSrcSymbs, lin);
+//        if (!)
+//        {
+//          outs() << "Removed: " << body << " => " << head << "\n";
+//          it = chcs.erase(it);
+//          continue;
+//        }
+
+        if (hr.srcRelations.size() == 0)
+        {
+          if (hasUninterp(body))
+          {
+            lin.clear();
+          }
+        }
+
+
+
+
+//        if (isOpX<FAPP>(head))
+//        {
+//          if (head->arg(0)->arity() == 2 && !hr.isFact)
+//          {
+//            if (!addFailDecl(head->arg(0)->arg(0)))
+//            {
+//              it = chcs.erase(it);
+//              continue;
+//            }
+//          }
+//          else
+//          {
+//            addDecl(head->arg(0));
+//          }
+//          hr.head = head->arg(0);
+//          hr.dstRelation = hr.head->arg(0);
+//        }
+//        else
+//        {
+//          if (!isOpX<FALSE>(head)) body = mk<AND>(body, mk<NEG>(head));
+//
+//          if (!addFailDecl(mk<FALSE>(m_efac)))
+//          {
+//            it = chcs.erase(it);
+//            continue;
+//          }
+//          hr.dstRelation = mk<FALSE>(m_efac);
+//        }
+
 
         hr.isQuery = (hr.dstRelation == failDecl);
+        if (hr.isQuery)
+        {
+          it = chcs.erase(it);
+          continue;
+        }
+        ++it;
         hr.isInductive = (hr.srcRelations.size() == 1 && hr.srcRelations[0] == hr.dstRelation);
         if (hr.isQuery) qCHCNum = chcs.size() - 1;
-
         ExprVector allOrigSymbs;
         for (auto & a : origSrcSymbs)  allOrigSymbs.push_back(a);
-        ExprVector origDstSymbs;
         if (!hr.isQuery)
         {
-          for (auto it = head->args_begin()+1, end = head->args_end(); it != end; ++it)
-            origDstSymbs.push_back(*it);
+          for (auto it1 = head->args_begin()+1, end = head->args_end(); it1 != end; ++it1)
+            origDstSymbs.push_back(*it1);
         }
         allOrigSymbs.insert(allOrigSymbs.end(), origDstSymbs.begin(), origDstSymbs.end());
         simplBoolReplCnj(allOrigSymbs, lin); // perhaps, not a very important optimization now; consider removing
+        //        origDstSymbs = hr.dstVars;
+        if (isOpX<FAPP>(hr.head))
+        {
+          hr.head = head->left();
+        }
         hr.body = conjoin(lin, m_efac);
+        hr.dstVars.clear();
+
 
         vector<ExprVector> tmp;
         // we may have several applications of the same predicate symbol in the body:
@@ -804,54 +529,20 @@ namespace ufo
           }
           tmp.push_back(tmp1);
         }
-//        outs() << "Body1:" << chcs[0].body << "\n";
+
+
         hr.assignVarsAndRewrite (origSrcSymbs, tmp,
                                  origDstSymbs, invVars[hr.dstRelation]);
-//        outs() << "Body1:" << chcs[0].body << "\n";
 
-        if ((isOpX<TRUE>(hr.body) && !hr.isQuery) ||
-            (hr.srcRelations.size() == 0 && hr.isQuery))
-        {
-          extras.push_back(r);
-          chcs.pop_back();
-          continue;
-        }
-
-        // Should keep non-adt variables using in adt constructors
-        ExprSet cnjsSet;
-        getConj(hr.body, cnjsSet);
-        for (auto cnj : cnjsSet) {
-          if (isOpX<EQ>(cnj)) {
-            Expr l = bind::fname(cnj->left());
-            Expr r = bind::fname(cnj->right());
-            if (std::find(constructors.begin(), constructors.end(), l) != constructors.end()) {
-              for (int i = 0; i < cnj->left()->arity(); ++i) {
-                Expr var = cnj->left()->arg(i);
-                if (!isAdtConst(var)) {
-                  hr.locVars.erase(std::remove(hr.locVars.begin(), hr.locVars.end(), var), hr.locVars.end());
-                }
-              }
-            }
-            if (std::find(constructors.begin(), constructors.end(), r) != constructors.end()) {
-              for (int i = 0; i < cnj->right()->arity(); ++i) {
-                Expr var = cnj->right()->arg(i);
-                if (!isAdtConst(var)) {
-                  hr.locVars.erase(std::remove(hr.locVars.begin(), hr.locVars.end(), var), hr.locVars.end());
-                }
-              }
-            }
-          }
-        }
-
-        hr.body = simpleQE(hr.body, hr.locVars);
         ExprVector body_vars;
         expr::filter (hr.body, bind::IsConst(), std::inserter (body_vars, body_vars.begin ()));
-        for (auto it = hr.locVars.begin(); it != hr.locVars.end(); )
+        for (auto it1 = hr.locVars.begin(); it1 != hr.locVars.end(); )
         {
-          if (find(body_vars.begin(), body_vars.end(), *it) == body_vars.end())
-            it = hr.locVars.erase(it);
-          else ++it;
+          if (find(body_vars.begin(), body_vars.end(), *it1) == body_vars.end())
+            it1 = hr.locVars.erase(it1);
+          else ++it1;
         }
+        outs() << "Chc: " << hr.body << " => " << hr.head << "\n";
       }
 
       for (int i = 0; i < chcs.size(); i++) {
@@ -859,15 +550,15 @@ namespace ufo
         incms[chcs[i].dstRelation].push_back(i);
       }
 
-      for (int i = 0; i < chcs.size(); i++) {
-        outs() << "Chc " << i << " :" << chcs[i].body << " => "  << chcs[i].head << "\n";
-      }
+//      for (int i = 0; i < chcs.size(); i++) {
+//        outs() << "Chc " << i << " :" << chcs[i].body << " => "  << chcs[i].head << "\n";
+//      }
       prune();
 
-      outs() << "Post pruning assignments: \n";
-      for (int i = 0; i < chcs.size(); i++) {
-        outs() << "Chc " << i << " :" << chcs[i].body  << "=>"  << chcs[i].head << "\n";
-      }
+//      outs() << "Post pruning assignments: \n";
+//      for (int i = 0; i < chcs.size(); i++) {
+//        outs() << "Chc " << i << " :" << chcs[i].body  << "=>"  << chcs[i].head << "\n";
+//      }
       index_fact_chc = -1;
       // find: index_cycle_chc
       for (int i = 0; i < chcs.size(); i++)
@@ -898,7 +589,7 @@ namespace ufo
            break;
         }
       }
-        }
+    }
 
     vector<vector<int>> cur_batch;
     void findCombs(int num, vector<vector<int>>& res)

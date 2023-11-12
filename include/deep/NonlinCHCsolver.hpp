@@ -874,6 +874,8 @@ namespace ufo
       ExprMap invs;
       CHCs ruleManager(m_efac, z3);
       ruleManager.parse(smt, true);
+
+      ruleManager.print();
       //ruleManager.print_parse_results();
       // if (ruleManager.index_cycle_chc == -1 || ruleManager.index_fact_chc == -1){
       //   outs() << "no function found\n";
