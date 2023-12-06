@@ -9,6 +9,7 @@
 #include <queue>
 #include <map>
 #include <time.h>
+#include <regex>
 // #include <stdlib.h>
 
 using namespace std;
@@ -124,6 +125,8 @@ namespace ufo
                       body = replaceAll(body, ruleManager.chcs[r].dstVars, args[i]);
                   // identifying applicable rules
                   if (u.isSat(body, conjoin(ssaSteps, m_efac))) {
+                      outs() << "Formula:" << "\n";
+                      outs() << mk<AND>(body, conjoin(ssaSteps, m_efac)) << "\n";
                       applicable.push_back(r);
                   }
               }
@@ -578,6 +581,8 @@ namespace ufo
             }
             else if (true == res) {
               outs () << "unrolling sat\n";
+              outs() << "Formula:" << "\n";
+              pprint(ssa, 5);
               strs << "_SAT.dot";
               string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();
               t->printToDot(dotFilename, ruleManager);
@@ -597,7 +602,7 @@ namespace ufo
               outs() <<  "\n";
               Expr model = u.getModel();
               outs() << "MODEL : \n";
-              //outs() << model << "\n";
+              outs() << model << "\n";
               // find bnd-variables that were used in the SSA encoding of the tree
               // dump tree_var to the file;
               ofstream testfile;
@@ -612,29 +617,34 @@ namespace ufo
                   outs() << " " << lexical_cast<string>(tmp.first) << "\n";
                 }
                 outs() << "\n";
+                index+=1;
               }
               for (int fun = 0; fun <= cur_bnd; fun++)
               {
                 auto d = ruleManager.chcs.back().srcRelations[fun];
                 string name = lexical_cast<string>(d);
+                outs() << ruleManager.chcs.back().body << "\n" << "Name: " << name << "\n";
                 for (auto & a : signature)
                 {
-                  // TODO: contract name
+                  // TODO: constructor should always be first!!!!!
                   // GF: is it resolved now?
                   for(auto & b : a.second)
                   {
                     string to_find = "_function_" + b.first;// + "__";
+                    if(fun == 0 && b.first.find(a.first) == -1) continue;
                     if (fun != 0 && name.find(to_find) == -1) continue;
                     testfile << b.first << "(";
                     for (int i = 0; i < b.second.size(); i++)
                     {
                       auto & c = b.second[i];
+                      regex r("("+c+"_)(.*)");
                       bool found = false;
                       for (auto & t : tree_map[fun])
                       {
+//                        outs() << "t: " << t <<"\n";
                         if (found) break;
                         name = lexical_cast<string>(t.first);
-                        if (name.find(c) == 0)
+                        if (regex_match(name, r))
                         {
                           testfile << u.getModel(t.second);
                           if (i < b.second.size() - 1) testfile << ", ";

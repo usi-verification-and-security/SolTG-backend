@@ -138,7 +138,7 @@ namespace ufo
         else ++c;
       }
     }
-    int cct = 0;
+
     void addDecl (Expr a)
     {
       if (invVars[a->arg(0)].empty())
@@ -170,7 +170,6 @@ namespace ufo
           }
           else
               assert(0);
-          cct++;
           invVars[a->arg(0)].push_back(var);
         }
       }
@@ -383,10 +382,9 @@ namespace ufo
         HornRuleExt & hr = *it;
         hr.head = hr.body->right();
         hr.body = hr.body->left();
-        hr.isFact = hr.srcRelations.empty();
         if (isOpX<FAPP>(hr.head))
         {
-          if (hr.head->left()->arity() == 2 && hr.srcRelations.empty()) {
+          if (hr.head->left()->arity() == 2) {
 //              (find(fp.m_queries.begin(), fp.m_queries.end(), hr.head) !=
 //               fp.m_queries.end()))
             if (!addFailDecl(hr.head->left()->left())) {
@@ -430,6 +428,8 @@ namespace ufo
         Expr body = hr.body;
 
         splitBody(hr, origSrcSymbs, lin);
+
+        hr.isFact = hr.srcRelations.empty();
 //        if (!)
 //        {
 //          outs() << "Removed: " << body << " => " << head << "\n";
@@ -589,7 +589,7 @@ namespace ufo
            break;
         }
       }
-    }
+        }
 
     vector<vector<int>> cur_batch;
     void findCombs(int num, vector<vector<int>>& res)
