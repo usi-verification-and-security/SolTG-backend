@@ -70,7 +70,9 @@ namespace ufo
 
   public:
 
-      NonlinCHCsolver(CHCs &r, map<string, map<string,vector<string>>> & s) : m_efac(r.m_efac), ruleManager(r), u(m_efac), signature(s) {}
+      NonlinCHCsolver(CHCs &r, map<string, map<string,vector<string>>> & s) :
+        m_efac(r.m_efac), ruleManager(r),
+        u(m_efac, r.m_z3.getAdtAccessors(), 10000), signature(s) {}
 
       bool checkAllOver(bool checkQuery = false) {
           for (auto &hr: ruleManager.chcs) {
@@ -602,7 +604,7 @@ namespace ufo
               outs() <<  "\n";
               Expr model = u.getModel();
               outs() << "MODEL : \n";
-              outs() << model << "\n";
+              pprint(model);
               // find bnd-variables that were used in the SSA encoding of the tree
               // dump tree_var to the file;
               ofstream testfile;

@@ -18,6 +18,7 @@ namespace ufo
     ZSolver<EZ3> smt;
     bool can_get_model;
     ZSolver<EZ3>::Model* m;
+    ExprSet accessors;
 
   public:
 
@@ -26,6 +27,17 @@ namespace ufo
 
     SMTUtils (ExprFactory& _efac, unsigned _to) :
         efac(_efac), z3(efac), smt (z3, _to), can_get_model(0), m(NULL) {}
+
+    SMTUtils (ExprFactory& _efac, ExprVector& _accessors, unsigned _to) :
+        efac(_efac), z3(efac), smt (z3, _to), can_get_model(0), m(NULL)
+        {
+          for(auto b : _accessors)
+            if (b->arity() == 3)
+              accessors.insert(b);
+            else
+              // this should not happen
+            ;
+        }
 
     boost::tribool eval(Expr v, ZSolver<EZ3>::Model* m1)
     {
@@ -57,23 +69,29 @@ namespace ufo
       return m->eval(v);
     }
 
+    void unfold(ExprSet& sels, Expr v)
+    {
+      bool hasAccs = false;
+      for (auto & a : accessors)
+      {
+        assert(a->arity() == 3);
+        if (typeOf(v) != a->right()) continue;
+        ExprVector args = {a, v};
+        unfold(sels, mknary<FAPP>(args));
+        hasAccs = true;
+      }
+      if (!hasAccs)
+        sels.insert(v);
+    }
+
     template <typename T> Expr getModel(T& vars)
     {
       getModelPtr();
       if (m == NULL) return NULL;
       ExprVector eqs;
-      for (auto & v : vars)
-      {
-        Expr e = m->eval(v);
-        if (e == NULL || containsOp<EXISTS>(e) || containsOp<FORALL>(e))
-        {
-          continue;
-        }
-        else if (e != v)
-        {
-          eqs.push_back(mk<EQ>(v, e));
-        }
-      }
+      ExprSet sels;
+      for (auto & v : vars) unfold(sels, v);
+      for (auto & v : sels) eqs.push_back(mk<EQ>(v, m->eval(v)));
       return conjoin (eqs, efac);
     }
 
