@@ -39,6 +39,15 @@ namespace ufo
             ;
         }
 
+    Expr getAccessor(string name, Expr type)
+    {
+      for (auto & a : accessors)
+        if (lexical_cast<string>(a->left()) == name &&
+            type == a->right())
+          return a;
+      return NULL;
+    }
+
     boost::tribool eval(Expr v, ZSolver<EZ3>::Model* m1)
     {
       Expr ev = m1->eval(v);
@@ -64,9 +73,8 @@ namespace ufo
 
     Expr getModel(Expr v)
     {
-      getModelPtr();
-      if (m == NULL) return NULL;
-      return m->eval(v);
+      ExprVector var = {v};
+      return getModel(var)->right();
     }
 
     void unfold(ExprSet& sels, Expr v)

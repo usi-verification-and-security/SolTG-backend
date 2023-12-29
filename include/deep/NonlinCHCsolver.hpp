@@ -526,6 +526,7 @@ namespace ufo
 
 
         outs () << "new iter with cur_bnd = " << cur_bnd <<"\n";
+        errs () << "new iter with cur_bnd = " << cur_bnd <<"\n";
         while (true)
         {
         int trees_checked_per_cur_bnd = 0;
@@ -563,7 +564,6 @@ namespace ufo
             varCnt = 0;
             treeToSMT(t->getRoot());
 
-
             //ToDo: add dump of quiry to smt
             //serialize();
 //            for(auto e: ssa){
@@ -576,18 +576,18 @@ namespace ufo
             stringstream strs;
             strs << "dot_dump_cur_bnd_" << cur_bnd << "_depth_" << depth << "_ind_" << trees_checked_per_cur_bnd;
             if (false == res) {
-              strs << "_unsat.dot";
-              string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();
-              t->printToDot(dotFilename, ruleManager);
+              // strs << "_unsat.dot";
+              // string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();
+              // t->printToDot(dotFilename, ruleManager);
               outs () << "unrolling unsat\n";
             }
             else if (true == res) {
               outs () << "unrolling sat\n";
-              outs() << "Formula:" << "\n";
-              pprint(ssa, 5);
-              strs << "_SAT.dot";
-              string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();
-              t->printToDot(dotFilename, ruleManager);
+              // outs() << "Formula:" << "\n";
+              // pprint(ssa, 5);
+              // strs << "_SAT.dot";
+              // string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();
+              // t->printToDot(dotFilename, ruleManager);
               for (int c : el) {outs() << c << " ";} outs() << "\n";
               //printTree(t->getRoot(), 0);
               for (int c : el) {
@@ -625,37 +625,51 @@ namespace ufo
               {
                 auto d = ruleManager.chcs.back().srcRelations[fun];
                 string name = lexical_cast<string>(d);
-                outs() << ruleManager.chcs.back().body << "\n" << "Name: " << name << "\n";
+                // outs() << ruleManager.chcs.back().body << "\n" << "Name: " << name << "\n";
                 for (auto & a : signature)
                 {
                   // TODO: constructor should always be first!!!!!
                   // GF: is it resolved now?
-                  for(auto & b : a.second)
+                  for (auto & b : a.second)
                   {
-                    string to_find = "_function_" + b.first;// + "__";
-                    if(fun == 0 && b.first.find(a.first) == -1) continue;
-                    if (fun != 0 && name.find(to_find) == -1) continue;
-                    testfile << b.first << "(";
+                    string funsrch = b.first.substr(0, b.first.find_last_of('_') - 1);
+                    string to_find = "_function_" + funsrch;// + "__";
+                    if (fun == 0 && b.first.find(a.first) == -1) continue;
+                    if (fun != 0)
+                    {
+                      auto str = name;
+                      for (int i = 0; i < 4 && str.find_last_of('_') > 0; i++)
+                        str = str.substr(0, str.find_last_of('_'));
+                      if (str.substr(str.size() - to_find.size()) != to_find) continue;
+                    }
+                    testfile << b.first << "("; // maybe `funsrch`?
                     for (int i = 0; i < b.second.size(); i++)
                     {
                       auto & c = b.second[i];
                       regex r("("+c+"_)(.*)");
-                      bool found = false;
                       for (auto & t : tree_map[fun])
                       {
-//                        outs() << "t: " << t <<"\n";
-                        if (found) break;
-                        name = lexical_cast<string>(t.first);
-                        if (regex_match(name, r))
+                        Expr acc = u.getAccessor(c, typeOf(t.first));
+                        Expr var = NULL;
+                        if (acc != NULL)
                         {
-                          testfile << u.getModel(t.second);
+                          ExprVector args = {acc, t.second};
+                          var = mknary<FAPP>(args);
+                        }
+                        else if (regex_match(lexical_cast<string>(t.first), r))
+                        {
+                          var = t.second;
+                        }
+                        if (var != NULL)
+                        {
+                          testfile << u.getModel(var);
                           if (i < b.second.size() - 1) testfile << ", ";
-                          found = true;
+                          break;
                         }
                       }
                     }
                     testfile << ")\n";
-                    if (fun == 0) break; // constructor goes first, so we exit fast
+                    break;
                   }
                 }
               }
