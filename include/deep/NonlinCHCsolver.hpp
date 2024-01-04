@@ -511,6 +511,29 @@ namespace ufo
       enc_chc << "(check-sat)\n";
     }
 
+    Expr getVar (string c, int fun)
+    {
+      regex r("("+c+"_)(.*)");
+      for (auto & t : tree_map[fun])
+      {
+        Expr acc = u.getAccessor(c, typeOf(t.first));
+        Expr var = NULL;
+        if (acc != NULL)
+        {
+          ExprVector args = {acc, t.second};
+          var = mknary<FAPP>(args);
+        }
+        else if (regex_match(lexical_cast<string>(t.first), r))
+        {
+          var = t.second;
+        }
+        if (var != NULL)
+        {
+          return var;
+        }
+      }
+      return NULL;
+    }
 
     // TODO: skeleton of the new implementation
     void exploreTracesNonLinearTG(int bnd)
@@ -523,10 +546,7 @@ namespace ufo
 
       for (int cur_bnd = 1; cur_bnd <= bnd && !todoCHCs.empty(); cur_bnd++)
       {
-
-
         outs () << "new iter with cur_bnd = " << cur_bnd <<"\n";
-        errs () << "new iter with cur_bnd = " << cur_bnd <<"\n";
         while (true)
         {
         int trees_checked_per_cur_bnd = 0;
@@ -628,8 +648,6 @@ namespace ufo
                 // outs() << ruleManager.chcs.back().body << "\n" << "Name: " << name << "\n";
                 for (auto & a : signature)
                 {
-                  // TODO: constructor should always be first!!!!!
-                  // GF: is it resolved now?
                   for (auto & b : a.second)
                   {
                     string funsrch = b.first.substr(0, b.first.find_last_of('_') - 1);
@@ -646,26 +664,15 @@ namespace ufo
                     for (int i = 0; i < b.second.size(); i++)
                     {
                       auto & c = b.second[i];
-                      regex r("("+c+"_)(.*)");
-                      for (auto & t : tree_map[fun])
+                      Expr var = getVar(c, fun);
+                      if (var != NULL)
                       {
-                        Expr acc = u.getAccessor(c, typeOf(t.first));
-                        Expr var = NULL;
-                        if (acc != NULL)
-                        {
-                          ExprVector args = {acc, t.second};
-                          var = mknary<FAPP>(args);
-                        }
-                        else if (regex_match(lexical_cast<string>(t.first), r))
-                        {
-                          var = t.second;
-                        }
-                        if (var != NULL)
-                        {
-                          testfile << u.getModel(var);
-                          if (i < b.second.size() - 1) testfile << ", ";
-                          break;
-                        }
+                        Expr m = u.getModel(var);
+                        if (isArray(m))
+                          var = mk<SELECT>(m, getVar("this", fun)); // hack for now: could be something else instead of `this`
+                        testfile << u.getModel(var);
+                        if (i < b.second.size() - 1)
+                          testfile << ", ";
                       }
                     }
                     testfile << ")\n";
