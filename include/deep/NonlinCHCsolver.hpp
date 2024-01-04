@@ -517,20 +517,13 @@ namespace ufo
       for (auto & t : tree_map[fun])
       {
         Expr acc = u.getAccessor(c, typeOf(t.first));
-        Expr var = NULL;
         if (acc != NULL)
         {
           ExprVector args = {acc, t.second};
-          var = mknary<FAPP>(args);
+          return mknary<FAPP>(args);
         }
         else if (regex_match(lexical_cast<string>(t.first), r))
-        {
-          var = t.second;
-        }
-        if (var != NULL)
-        {
-          return var;
-        }
+          return t.second;
       }
       return NULL;
     }
@@ -667,10 +660,25 @@ namespace ufo
                       Expr var = getVar(c, fun);
                       if (var != NULL)
                       {
-                        Expr m = u.getModel(var);
-                        if (isArray(m))
+                        Expr m = simplifyBool(simplifyArithm(simplifyArr(u.getModel(var))));
+                        if (c == "state")
                           var = mk<SELECT>(m, getVar("this", fun)); // hack for now: could be something else instead of `this`
-                        testfile << u.getModel(var);
+
+                        m = simplifyBool(simplifyArithm(simplifyArr(u.getModel(var))));
+                        if (c == "state")
+                          testfile << "\"address(this).balance=" << m << "\"";
+                        else if (isArray(m))
+                        {
+                          testfile << "ARRAY[";
+                          while (isOpX<STORE>(m))
+                          {
+                            testfile << "(" << m->right() << "," << m->last() << ")";
+                            m = m->left();
+                          }
+                          testfile << "]";
+                        }
+                        else
+                          testfile << m;
                         if (i < b.second.size() - 1)
                           testfile << ", ";
                       }

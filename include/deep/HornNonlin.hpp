@@ -495,7 +495,7 @@ namespace ufo
             origDstSymbs.push_back(*it1);
         }
         allOrigSymbs.insert(allOrigSymbs.end(), origDstSymbs.begin(), origDstSymbs.end());
-        simplBoolReplCnj(allOrigSymbs, lin); // perhaps, not a very important optimization now; consider removing
+        // simplBoolReplCnj(allOrigSymbs, lin); // perhaps, not a very important optimization now; consider removing
         //        origDstSymbs = hr.dstVars;
         if (isOpX<FAPP>(hr.head))
         {
