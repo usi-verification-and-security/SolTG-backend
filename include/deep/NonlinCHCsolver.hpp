@@ -651,7 +651,7 @@ namespace ufo
                       auto str = name;
                       for (int i = 0; i < 4 && str.find_last_of('_') > 0; i++)
                         str = str.substr(0, str.find_last_of('_'));
-                      if (str.substr(str.size() - to_find.size()) != to_find) continue;
+                      if (str.size() < to_find.size() || str.substr(str.size() - to_find.size()) != to_find) continue;
                     }
                     testfile << b.first << "("; // maybe `funsrch`?
                     for (int i = 0; i < b.second.size(); i++)
