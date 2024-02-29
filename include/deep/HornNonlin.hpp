@@ -312,7 +312,7 @@ namespace ufo
         else prune();
     }
 
-    void parse(string smt, bool removeQuery = false)
+    void parse(string smt, string contract, bool removeQuery = false)
     {
       // GF: this entry part is different from the original implementation
       // (since the fixpoint format does not support ADTs)
@@ -566,7 +566,8 @@ namespace ufo
         string name = lexical_cast<string>(chcs[i].dstRelation);
         if (name.find("nondet_interface") == std::string::npos &&
             find (chcs[i].srcRelations.begin(), chcs[i].srcRelations.end(),
-            chcs[i].dstRelation) != chcs[i].srcRelations.end())
+            chcs[i].dstRelation) != chcs[i].srcRelations.end() &&
+            name.find(contract) != std::string::npos)
         {
           index_cycle_chc.push_back(i);
           outs () << "cycle found (#" << i << "):\n";
@@ -577,19 +578,18 @@ namespace ufo
       assert(!index_cycle_chc.empty());
 
       // find fact now:
-      for (int i = 0; i < chcs.size(); i++)
-      {
+      for (int i = 0; i < chcs.size(); i++) {
         if (find(index_cycle_chc.begin(), index_cycle_chc.end(), i) !=
-                 index_cycle_chc.end()) continue;
-        if (chcs[i].dstRelation == chcs[index_cycle_chc[0]].dstRelation)
-        {
-           index_fact_chc = i;
-           outs () << "fact found (#" << i << "):\n";
-           print(chcs[i]);
-           break;
+            index_cycle_chc.end())
+          continue;
+        if (chcs[i].dstRelation == chcs[index_cycle_chc[0]].dstRelation) {
+          index_fact_chc = i;
+          outs() << "fact found (#" << i << "):\n";
+          print(chcs[i]);
+          break;
         }
       }
-        }
+    }
 
     vector<vector<int>> cur_batch;
     void findCombs(int num, vector<vector<int>>& res)

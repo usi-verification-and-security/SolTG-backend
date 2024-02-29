@@ -263,12 +263,12 @@ namespace ufo
       set<int> dst_set;
       int exit_v = -1;
       for (int i  = 0; i < ruleManager.chcs.size(); i++){
-        dst_set.insert(ruleManager.chcs[i].dstRelation->getId());
         if(ruleManager.chcs[i].isFact){
           auto entry = ruleManager.chcs[i].dstRelation->getId();
-          //outs() << entry << endl;
+          outs() << entry << "\n";
           entries_tmp.insert(entry);
-        }else{
+        } else {
+          dst_set.insert(ruleManager.chcs[i].dstRelation->getId());
           auto tmp_src = ruleManager.chcs[i].srcRelations;
           for (int j = 0; j < tmp_src.size(); j++){
             src_set.insert(tmp_src[j]->getId());
@@ -282,6 +282,7 @@ namespace ufo
       for (itr = dst_set.begin();itr != dst_set.end(); itr++){
         if(src_set.find(*itr) == src_set.end() && entries_tmp.find(*itr) == entries_tmp.end()){
           exit_v = *itr;
+//          break;
         }
       }
       for (int i = 0; i < ruleManager.chcs.size(); i++){
@@ -294,12 +295,22 @@ namespace ufo
       //vector<int> entries(entries_tmp.begin(), entries_tmp.end());
       vector<int> entries; //all leaves end with "-1", because sometimes node can be leaf (isFact=true) and not leaf
       entries.push_back(-1);
-      for (int i  = 0; i < ruleManager.chcs.size(); i++) {
+//      outs() << "CHCS: \n";
+      for (int i = 0; i < ruleManager.chcs.size(); i++) {
         auto tmp_src = ruleManager.chcs[i].srcRelations;
-        for (int j = 0; j < tmp_src.size(); j++){
-          if (dst_set.find(tmp_src[j]->getId()) == dst_set.end()){
+        outs() << "Current CHC: " << "\n";
+        ruleManager.print(ruleManager.chcs[i]);
+        outs() << "Parents: " << "\n";
+        for (int j = 0; j < tmp_src.size(); j++) {
+          outs() << tmp_src[j]->getId() << "\n";
+          if (dst_set.find(tmp_src[j]->getId()) == dst_set.end()) {
+            // TODO: Never enters here! Why ?????
             entries.push_back(tmp_src[j]->getId());
           }
+//          if (tmp_src[j].isFact) {
+//            // TODO: Never enters here! Why ?????
+//            entries.push_back(tmp_src[j]->getId());
+//          }
         }
       }
 
@@ -334,12 +345,14 @@ namespace ufo
       }
 
       auto & chc = ruleManager.chcs[t->chc_index];
-//       outs () << "\nssa-ing: ";
-//       ruleManager.print(chc);
+      outs () << "\nssa-ing: ";
+      ruleManager.print(chc);
 
       if (lev == 1)
       {
         ExprMap tmp;
+        outs() << "Initial Horn: \n";
+        ruleManager.print(chc);
         for (auto & i : chc.arg_names)
           tmp[i.second] = srcVars[i.first];
         tree_map.push_back(tmp);
@@ -547,6 +560,7 @@ namespace ufo
         assert(ruleManager.getNumQs() == 1);
         //ruleManager.print(ruleManager.chcs.back());
         ruleManager.print_parse_results();
+
         //ruleManager.print();
 
         // 1. restart tree generation (up to some depth, e.g., 10)
@@ -560,6 +574,11 @@ namespace ufo
           chcG->getNext(trees);
           outs() << "depth: " << depth << "; trees size : " << trees.size() << "\n";
           for (auto t : trees){
+            for(auto route: trees){
+              auto & chc = ruleManager.chcs[route->getRoot()->chc_index];
+              outs () << "\nssa-ing: ";
+              ruleManager.print(chc);
+            }
             if (trees_checked_per_cur_bnd > 30){outs() << "break: 30 trees checked \n"; break;}
             auto el = t->get_set();
             bool is_potential_tree_with_todo = false;
@@ -577,7 +596,6 @@ namespace ufo
             varCnt = 0;
             treeToSMT(t->getRoot());
 
-            //ToDo: add dump of quiry to smt
             //serialize();
 //            for(auto e: ssa){
 //              outs() << "Expr: " << (*e) << "\n";
@@ -678,6 +696,7 @@ namespace ufo
                           testfile << "]";
                         }
                         else
+                          outs() << "Model: " << m << "\n";
                           testfile << m;
                         if (i < b.second.size() - 1)
                           testfile << ", ";
@@ -914,7 +933,9 @@ namespace ufo
       EZ3 z3(m_efac);
       ExprMap invs;
       CHCs ruleManager(m_efac, z3);
-      ruleManager.parse(smt, true);
+      string contract = signature.begin()->first;
+
+      ruleManager.parse(smt, contract, true);
 
       ruleManager.print();
       //ruleManager.print_parse_results();
