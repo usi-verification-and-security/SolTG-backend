@@ -306,6 +306,18 @@ namespace ufo
           z3::ast arg = marshal (e->left(), ctx, cache, seen);
           return z3::ast (ctx, Z3_mk_bvredor(ctx, arg));
         }
+        if (isOpX<INT2BV>(e))
+        {
+          z3::ast arg = marshal (e->left(), ctx, cache, seen);
+          //TODO: SECOND NUMBER IS THE AMOUNT OF BITS IN THE BV ENCODING
+          return z3::ast (ctx, Z3_mk_int2bv(ctx, 64, arg));
+        }
+        if (isOpX<BV2INT>(e))
+        {
+          z3::ast arg = marshal (e->left(), ctx, cache, seen);
+          //TODO: BOOL DESCRIBES IF NUMBER IS UNSIGNED OR NOT
+          return z3::ast (ctx, Z3_mk_bv2int(ctx, arg, false));
+        }
 
         return M::marshal (e, ctx, cache, seen);
       }
@@ -826,6 +838,13 @@ namespace ufo
 
       switch (dkind)
 	{
+
+  case Z3_OP_INT2BV:
+    e = mknary<INT2BV> (args.begin (), args.end ());
+    break;
+  case Z3_OP_BV2INT:
+    e = mknary<BV2INT> (args.begin (), args.end ());
+    break;
 	case Z3_OP_ITE:
 	  e = mknary<ITE> (args.begin (), args.end ());
 	  break;
