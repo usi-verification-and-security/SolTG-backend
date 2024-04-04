@@ -316,7 +316,7 @@ namespace ufo
         {
           z3::ast arg = marshal (e->left(), ctx, cache, seen);
           //TODO: BOOL DESCRIBES IF NUMBER IS UNSIGNED OR NOT
-          return z3::ast (ctx, Z3_mk_bv2int(ctx, arg, false));
+          return z3::ast (ctx, Z3_mk_bv2int(ctx, arg, true));
         }
 
         return M::marshal (e, ctx, cache, seen);
