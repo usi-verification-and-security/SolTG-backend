@@ -105,16 +105,34 @@ namespace deep {
       root = r;
     }
 
-    chcTree(int parent, int chc_index_value, chc_structure childrens){
+    chcTree(int parent, int chc_index_value, chc_structure children){
       vector<node *> tmp_nodes;
-      for (auto c : childrens.srs){
+      for (auto c : children.srs){
         auto tmp = new node{c};
         if (!contains_entry(c)){
           non_entry_leaves.push_back(tmp);
         }
         tmp_nodes.push_back(tmp);
       }
-      root = new node{parent, chc_index_value, childrens.srs};
+      root = new node{parent, chc_index_value, children.srs};
+    }
+
+    chcTree(int parent, int chc_index_value, chc_structure children, std::vector<node *>& preset_children){
+      vector<node *> tmp_nodes;
+      for (int i = preset_children.size(); i < children.srs.size(); i++){
+//      for (auto c : children.srs){
+        auto tmp = new node{children.srs[i]};
+        if (!contains_entry(children.srs[i])){
+          non_entry_leaves.push_back(tmp);
+        }
+        tmp_nodes.push_back(tmp);
+      }
+//      for (auto c: children.srs) {
+      for (int i = preset_children.size(); i < children.srs.size(); i++){
+        node *n = new node{children.srs[i]};
+        preset_children.push_back(n);
+      }
+      root = new node{parent, chc_index_value, preset_children};
     }
 
 
@@ -606,6 +624,20 @@ namespace deep {
         chcTree *t = new chcTree(exit_v, exit_index, items);
         //ToDo: check tree if it if "full" and  add to corresponding list
         trees.push_back(t);
+      }
+      //chcTree t = new chcTree
+    }
+
+    void init_trees(std::vector<chcTree*>& init_trees){
+      auto exit_points = ds_map.find(exit_v);
+      for(int i = 0; i<init_trees.size(); i++) {
+        vector<node*> funcs = (*(*init_trees[i]).getRoot()).children;
+        for (auto items: exit_points->second) {
+          //TODO: need to cut items a bit!!
+          chcTree *t = new chcTree(exit_v, exit_index, items, funcs);
+          //ToDo: check tree if it if "full" and  add to corresponding list
+          trees.push_back(t);
+        }
       }
       //chcTree t = new chcTree
     }

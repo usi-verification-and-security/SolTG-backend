@@ -627,7 +627,7 @@ namespace ufo
       return i;
     }
 
-    bool mkNewQuery(int cycl_num)
+    std::tuple<bool, ExprVector> mkNewQuery(int cycl_num)
     {
       outs () << "  ***************   pop back the query ************\n";
       if (chcs.back().isQuery)
@@ -643,7 +643,7 @@ namespace ufo
       // outs () << "to copy: " << cy.srcRelations[sum] << "\n";
       chcs.push_back(chcs[index_fact_chc]);
       auto & hr = chcs.back();
-
+      pprint(chcs.back().body);
       int loc = 0;
       ExprVector newbody;
       ExprVector& prevdst = chcs[index_fact_chc].dstVars;
@@ -680,10 +680,14 @@ namespace ufo
           repl2[cy.locVars[k]] = newvar;
           loc++;
         }
+//        pprint(prevbody);
+//        pprint(cy.body);
         prevbody = replaceAll(prevbody, repl1);
+//        pprint(prevbody);
         newbody.push_back(prevbody);
         // pprint(prevbody);
         prevbody = replaceAll(cy.body, repl2);
+//        pprint(prevbody);
         prevdst = cy.dstVars;
 
         hr.srcRelations.push_back(cy.srcRelations[sum]);
@@ -701,18 +705,23 @@ namespace ufo
       }
       newbody.push_back(prevbody);
       hr.body = conjoin(newbody, m_efac);
+      pprint(chcs.back().body);
+//      pprint(hr.body);
       hr.isQuery = 1;
       hr.isInductive = 0;
       hr.isFact = 0;
       hr.dstRelation = failDecl;
       hr.dstVars.clear();
       outs () << "   >>> new query:   ";
+      ExprVector full_srcRelations = hr.srcRelations;
       pprint(hr.srcRelations);
       outs () << "\n";
-
+//      if(full_srcRelations.size() > 2) {
+//        hr.srcRelations = {full_srcRelations[full_srcRelations.size() - 1]};
+//      }
       assert (!cur_batch.empty());
       cur_batch.pop_back();
-      return cur_batch.empty();
+      return {cur_batch.empty(), full_srcRelations};
     }
 
     void print_parse_results(){

@@ -287,23 +287,13 @@ namespace ufo
       for (int i = 0; i < ruleManager.chcs.size(); i++){
         if(ruleManager.chcs[i].dstRelation->getId() == exit_v){
           exit_index = i;
-          break;
+//          break;
         }
       }
       //outs() << "Exit index: " << exit_index << " : id" << exit_v << "\n";
       //vector<int> entries(entries_tmp.begin(), entries_tmp.end());
       vector<int> entries; //all leaves end with "-1", because sometimes node can be leaf (isFact=true) and not leaf
       entries.push_back(-1);
-      for (int i = 0; i < ruleManager.chcs.size(); i++) {
-        auto tmp_src = ruleManager.chcs[i].srcRelations;
-        for (int j = 0; j < tmp_src.size(); j++) {
-          outs() << tmp_src[j]->getId() << "\n";
-          if (dst_set.find(tmp_src[j]->getId()) == dst_set.end()) {
-            // TODO: Never enters here! Why ?????
-            entries.push_back(tmp_src[j]->getId());
-          }
-        }
-      }
 
       auto chcG = new deep::chcTreeGenerator{entries, exit_v, exit_index};
       for (int i  = 0; i < ruleManager.chcs.size(); i++) {
@@ -314,7 +304,7 @@ namespace ufo
             input_src.push_back(tmp_src[j]->getId());
           }
           chcG->add_chc_int(i, input_src, ruleManager.chcs[i].dstRelation->getId());
-        }else{
+        } else {
           vector<int> input_src;
           input_src.push_back(-1);
           chcG->add_chc_int(i, input_src, ruleManager.chcs[i].dstRelation->getId());
@@ -324,6 +314,64 @@ namespace ufo
       chcG->init_tree();
       return chcG;
     }
+
+      deep::chcTreeGenerator * initChcTrees(std::vector<deep::chcTree*>& builtTrees){
+        set<int> entries_tmp;
+        set<int> src_set;
+        set<int> dst_set;
+        int exit_v = -1;
+        for (int i  = 0; i < ruleManager.chcs.size(); i++){
+          dst_set.insert(ruleManager.chcs[i].dstRelation->getId());
+          if(ruleManager.chcs[i].isFact){
+            auto entry = ruleManager.chcs[i].dstRelation->getId();
+            // outs() << entry << "\n";
+            entries_tmp.insert(entry);
+          } else {
+            auto tmp_src = ruleManager.chcs[i].srcRelations;
+            for (int j = 0; j < tmp_src.size(); j++){
+              src_set.insert(tmp_src[j]->getId());
+            }
+          }
+        }
+        //find exit id
+        set<int>::iterator itr;
+        int exit_index = -1;
+        int i = 0;
+        for (itr = dst_set.begin();itr != dst_set.end(); itr++){
+          if(src_set.find(*itr) == src_set.end() && entries_tmp.find(*itr) == entries_tmp.end()){
+            exit_v = *itr;
+          }
+        }
+        for (int i = 0; i < ruleManager.chcs.size(); i++){
+          if(ruleManager.chcs[i].dstRelation->getId() == exit_v){
+            exit_index = i;
+//          break;
+          }
+        }
+        //outs() << "Exit index: " << exit_index << " : id" << exit_v << "\n";
+        //vector<int> entries(entries_tmp.begin(), entries_tmp.end());
+        vector<int> entries; //all leaves end with "-1", because sometimes node can be leaf (isFact=true) and not leaf
+        entries.push_back(-1);
+
+        auto chcG = new deep::chcTreeGenerator{entries, exit_v, exit_index};
+        for (int i  = 0; i < ruleManager.chcs.size(); i++) {
+          if (!ruleManager.chcs[i].isFact) {
+            auto tmp_src = ruleManager.chcs[i].srcRelations;
+            vector<int> input_src;
+            for (int j = 0; j < tmp_src.size(); j++){
+              input_src.push_back(tmp_src[j]->getId());
+            }
+            chcG->add_chc_int(i, input_src, ruleManager.chcs[i].dstRelation->getId());
+          } else {
+            vector<int> input_src;
+            input_src.push_back(-1);
+            chcG->add_chc_int(i, input_src, ruleManager.chcs[i].dstRelation->getId());
+          }
+        }
+        chcG->create_map();
+        chcG->init_trees(builtTrees);
+        return chcG;
+      }
 
     ExprVector ssa;
     void treeToSMT(deep::node *t, int lev = 0, ExprVector srcVars = {})
@@ -538,14 +586,31 @@ namespace ufo
       int chcs_original_size = ruleManager.chcs.size();
 
       fillTodos(todoCHCs);
+      map<int, vector<deep::chcTree *>> satTrees;
 
+      //TODO: Preprocessing flow of execution
+
+      //TODO: Actual run
       for (int cur_bnd = 1; cur_bnd <= bnd && !todoCHCs.empty(); cur_bnd++)
       {
         outs () << "new iter with cur_bnd = " << cur_bnd <<"\n";
         while (true)
         {
         int trees_checked_per_cur_bnd = 0;
-        bool last_iter = ruleManager.mkNewQuery(cur_bnd);
+        auto new_query = ruleManager.mkNewQuery(cur_bnd);
+        int id = 0;
+        int prev_id = 0;
+        for(int i = 0; i < get<1>(new_query).size(); i++){
+          id += get<1>(new_query)[i]->getId() * (10^i);
+          if(i <  get<1>(new_query).size() - 1){
+            prev_id = id;
+          }
+        }
+
+        if( satTrees[prev_id].size() == 0 && get<1>(new_query).size() > 2){
+          continue;
+        }
+
         assert(ruleManager.getNumQs() == 1);
         //ruleManager.print(ruleManager.chcs.back());
         ruleManager.print_parse_results();
@@ -553,17 +618,23 @@ namespace ufo
         //ruleManager.print();
 
         // 1. restart tree generation (up to some depth, e.g., 10)
-        auto chcG = initChcTree();
-        int tree_depth = 15;
+        deep::chcTreeGenerator* chcG;
+        if(satTrees[prev_id].size() == 0) {
+          chcG = initChcTree();
+        } else {
+          chcG = initChcTrees(satTrees[prev_id]);
+        }
+        int tree_depth = 30;
         for (int depth = 1; depth <= tree_depth; depth++){
           // 2. enumerate all trees and call `isSat`
           vector<deep::chcTree *> trees;
-          if (trees_checked_per_cur_bnd > 30){outs() << "break: 30 trees checked \n"; break;}
+//          if (trees_checked_per_cur_bnd > 200){outs() << "break: 200 trees checked \n"; break;}
           if (chcG->trees.size() == 0) {break;}
           chcG->getNext(trees);
           outs() << "depth: " << depth << "; trees size : " << trees.size() << "\n";
           for (auto t : trees){
-            if (trees_checked_per_cur_bnd > 30){outs() << "break: 30 trees checked \n"; break;}
+//            if (trees_checked_per_cur_bnd > 200){outs() << "break: 200 trees checked \n"; break;}
+//            satTrees[prev_id].
             auto el = t->get_set();
             bool is_potential_tree_with_todo = false;
             for (int c : el) {
@@ -597,6 +668,11 @@ namespace ufo
               outs () << "unrolling unsat\n";
             }
             else if (true == res) {
+              if (satTrees[id].size() > 0) {
+                satTrees[id].push_back(deep::chcTree::clone(t));
+              } else {
+                satTrees[id] = {deep::chcTree::clone(t)};
+              }
               outs () << "unrolling sat\n";
               // outs() << "Formula:" << "\n";
               // pprint(ssa, 5);
@@ -712,7 +788,7 @@ namespace ufo
         /* TODO:
           3. for all tree that gave `SAT`, extract tests, and remove CHCs from `todoCHCs`
         */
-        if (last_iter) break;
+        if (std::get<0>(new_query)) break;
         }
       }
     }
@@ -768,7 +844,6 @@ namespace ufo
         }
         cur_bnd++;
         continue;   // GF: skip for now
-
         chcG->print_trees();
 
         set<int> toErCHCs;
@@ -895,16 +970,6 @@ namespace ufo
       outs () << "Done with TG\n";
     }
 
-//    inline void
-//      solveNonlin(string smt, int inv) {
-//          ExprFactory m_efac;
-//          EZ3 z3(m_efac);
-//          CHCs ruleManager(m_efac, z3);
-//          ruleManager.parse(smt);
-//          NonlinCHCsolver nonlin(ruleManager);
-//
-//          nonlin.solveIncrementally(inv);
-//      };
   };
 
     inline void testgen(char* smt, map<string, map<string, vector<string>>>& signature, unsigned maxAttempts, unsigned to,
