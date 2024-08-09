@@ -43,7 +43,7 @@ namespace deep {
       element = theElement;
       chc_index = theChc_value;
       for (int i = 0; i < c.size(); i++) {
-        add_child(c[i]);
+        add_child(clone(c[i]));
       }
     }
 
@@ -53,6 +53,14 @@ namespace deep {
       for (int i = 0; i < c.size(); i++) {
         node *n = new node{c[i]};
         add_child(n);
+      }
+    }
+
+    node (const node &n){
+      element = n.element;
+      chc_index = n.chc_index;
+      for (int i = 0; i < n.children.size(); i++){
+        add_child(n.children[i]);
       }
     }
 
@@ -75,13 +83,15 @@ namespace deep {
     static node* clone(node* n){
       int tmp_e = n->element;
       int tmp_i = n->chc_index;
-      vector<node *> new_chileds;
+      vector<node *> new_children;
       for (auto c : n->children){
-        new_chileds.push_back(clone(c));
+        new_children.push_back(clone(c));
       }
-      node* out = new node{tmp_e, tmp_i, new_chileds};
+      node* out = new node{tmp_e, tmp_i, new_children};
       return out;
     }
+    
+
 
     bool empty(){
       return children.empty();
@@ -554,9 +564,9 @@ namespace deep {
             if (ds_term_node.find(k) != ds_term_node.end()){
               n.children.push_back(&ds_term_node.find(k)->second);
             } else {
-              node tmp{k};
-              init_termination_tree(k, tmp);
-              n.children.push_back(&tmp);
+              node *tmp = new node(k);
+              init_termination_tree(k, *tmp);
+              n.children.push_back(tmp);
             }
           }else{
             node *tmp = new node(-1,-1);
@@ -627,7 +637,7 @@ namespace deep {
       }
       //chcTree t = new chcTree
     }
-
+// TODO: Add test case for 2 function F calls
     void init_trees(std::vector<chcTree*>& init_trees){
       auto exit_points = ds_map.find(exit_v);
       for(int i = 0; i<init_trees.size(); i++) {

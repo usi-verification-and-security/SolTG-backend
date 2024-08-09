@@ -147,6 +147,7 @@ namespace ufo
       else
       {
         lastCand = conjoin(cnjs, efac);
+        serialize_formula(lastCand);
         smt.assertExpr(lastCand);
       }
       boost::tribool res = smt.solve ();

@@ -493,20 +493,20 @@ namespace ufo
 
     void serialize()
     {
-      std::ofstream enc_chc;
-      enc_chc.open("tg_query.smt2");
-      enc_chc << "(set-logic HORN)\n";
+//      std::cout enc_chc;
+//      enc_chc.open("tg_query.smt2");
+      std::cout << "(set-logic HORN)\n";
       for (auto & d: ruleManager.decls)
       {
-        enc_chc << "(declare-fun " << d->left() << " (";
+        std::cout << "(declare-fun " << d->left() << " (";
         for (int i = 1; i < d->arity() - 1; i++)
         {
-          u.print(d->arg(i), enc_chc);
-          if (i < d->arity()-2) enc_chc << " ";
+          u.print(d->arg(i), std::cout);
+          if (i < d->arity()-2) std::cout << " ";
         }
-        enc_chc << ") Bool)\n";
+        std::cout << ") Bool)\n";
       }
-      enc_chc << "\n";
+      std::cout << "\n";
       for (auto & c : ruleManager.chcs)
       {
         Expr src, dst;
@@ -554,11 +554,11 @@ namespace ufo
           }
         }else{ tmp_srs = src; }
 
-        enc_chc << "(assert ";
-        u.print(mkQFla(mk<IMPL>(mk<AND>(tmp_srs, c.body), dst), true), enc_chc);
-        enc_chc << ")\n\n";
+        std::cout << "(assert ";
+        u.print(mkQFla(mk<IMPL>(mk<AND>(tmp_srs, c.body), dst), true), std::cout);
+        std::cout << ")\n\n";
       }
-      enc_chc << "(check-sat)\n";
+      std::cout << "(check-sat)\n";
     }
 
     Expr getVar (string c, int fun)
@@ -651,10 +651,11 @@ namespace ufo
             varCnt = 0;
             treeToSMT(t->getRoot());
 
-            //serialize();
+//            serialize();
 //            for(auto e: ssa){
 //              outs() << "Expr: " << (*e) << "\n";
 //            }
+//            pprint(ssa);
             auto res = u.isSat(ssa);
             trees_checked_per_cur_bnd++;
             time_t my_time = time(NULL);
