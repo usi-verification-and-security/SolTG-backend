@@ -183,6 +183,13 @@ namespace deep {
       return out;
     }
 
+      set<int> get_subset(){
+        set<int> out;
+        out.insert(root->chc_index);
+        get_set(out, *root->children[root->children.size() - 1]);
+        return out;
+      }
+
     vector<int> get_non_entry_leaves(){
       vector<int> tmp;
       for (auto n: non_entry_leaves){

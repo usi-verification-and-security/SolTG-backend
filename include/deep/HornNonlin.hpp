@@ -643,7 +643,7 @@ namespace ufo
       // outs () << "to copy: " << cy.srcRelations[sum] << "\n";
       chcs.push_back(chcs[index_fact_chc]);
       auto & hr = chcs.back();
-      pprint(chcs.back().body);
+//      pprint(chcs.back().body);
       int loc = 0;
       ExprVector newbody;
       ExprVector& prevdst = chcs[index_fact_chc].dstVars;
@@ -705,7 +705,7 @@ namespace ufo
       }
       newbody.push_back(prevbody);
       hr.body = conjoin(newbody, m_efac);
-      pprint(chcs.back().body);
+//      pprint(chcs.back().body);
 //      pprint(hr.body);
       hr.isQuery = 1;
       hr.isInductive = 0;

@@ -493,20 +493,20 @@ namespace ufo
 
     void serialize()
     {
-//      std::cout enc_chc;
-//      enc_chc.open("tg_query.smt2");
-      std::cout << "(set-logic HORN)\n";
+      std::ofstream enc_chc;
+      enc_chc.open("tg_query.smt2");
+      enc_chc << "(set-logic HORN)\n";
       for (auto & d: ruleManager.decls)
       {
-        std::cout << "(declare-fun " << d->left() << " (";
+        enc_chc << "(declare-fun " << d->left() << " (";
         for (int i = 1; i < d->arity() - 1; i++)
         {
-          u.print(d->arg(i), std::cout);
-          if (i < d->arity()-2) std::cout << " ";
+          u.print(d->arg(i), enc_chc);
+          if (i < d->arity()-2) enc_chc << " ";
         }
-        std::cout << ") Bool)\n";
+        enc_chc << ") Bool)\n";
       }
-      std::cout << "\n";
+      enc_chc << "\n";
       for (auto & c : ruleManager.chcs)
       {
         Expr src, dst;
@@ -554,11 +554,11 @@ namespace ufo
           }
         }else{ tmp_srs = src; }
 
-        std::cout << "(assert ";
-        u.print(mkQFla(mk<IMPL>(mk<AND>(tmp_srs, c.body), dst), true), std::cout);
-        std::cout << ")\n\n";
+        enc_chc << "(assert ";
+        u.print(mkQFla(mk<IMPL>(mk<AND>(tmp_srs, c.body), dst), true), enc_chc);
+        enc_chc << ")\n\n";
       }
-      std::cout << "(check-sat)\n";
+      enc_chc << "(check-sat)\n";
     }
 
     Expr getVar (string c, int fun)
@@ -601,7 +601,7 @@ namespace ufo
         int id = 0;
         int prev_id = 0;
         for(int i = 0; i < get<1>(new_query).size(); i++){
-          id += get<1>(new_query)[i]->getId() * (10^i);
+          id += get<1>(new_query)[i]->getId() * (std::pow(10,i));
           if(i <  get<1>(new_query).size() - 1){
             prev_id = id;
           }
@@ -625,6 +625,7 @@ namespace ufo
           chcG = initChcTrees(satTrees[prev_id]);
         }
         int tree_depth = 30;
+        bool found_potential_tree = false;
         for (int depth = 1; depth <= tree_depth; depth++){
           // 2. enumerate all trees and call `isSat`
           vector<deep::chcTree *> trees;
@@ -635,10 +636,11 @@ namespace ufo
           for (auto t : trees){
 //            if (trees_checked_per_cur_bnd > 200){outs() << "break: 200 trees checked \n"; break;}
 //            satTrees[prev_id].
-            auto el = t->get_set();
+            auto el = t->get_subset();
             bool is_potential_tree_with_todo = false;
             for (int c : el) {
               if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
+                found_potential_tree = true;
                 is_potential_tree_with_todo = true; break;
               }
             }
@@ -782,6 +784,9 @@ namespace ufo
           for (auto t : trees){
             t->deleteTree();
           }
+        }
+        if(!found_potential_tree){
+            satTrees[id] = satTrees[prev_id];
         }
         chcG->clear();
 
@@ -1007,7 +1012,7 @@ namespace ufo
         // nonlin.initKeys(nums, lb);
         // nonlin.setInvs(invs);
         // todo
-        nonlin.exploreTracesNonLinearTG(25);
+        nonlin.exploreTracesNonLinearTG(7);
       }
     }
 };
