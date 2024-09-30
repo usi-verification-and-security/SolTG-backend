@@ -37,12 +37,13 @@ namespace ufo
     static Expr left;
     ExprVector subexpr;
 
+
   template <typename M>
   struct BasicExprMarshal
   {
     template <typename C>
     static z3::ast marshal (Expr e, z3::context &ctx,
-			    C &cache, expr_ast_map &seen)
+			    C &cache, expr_ast_map &seen, std::vector<Expr> adts, std::vector<std::string> &adts_seen)
     {
       assert (e);
       if (isOpX<TRUE>(e)) return z3::ast (ctx, Z3_mk_true (ctx));
@@ -65,23 +66,28 @@ namespace ufo
 
       if (bind::isBVar (e))
 	{
-	  z3::ast sort (marshal (bind::type (e), ctx, cache, seen));
+	  z3::ast sort (marshal (bind::type (e), ctx, cache, seen, adts, adts_seen));
 	  res = Z3_mk_bound (ctx, bind::bvarId (e),
 			     reinterpret_cast<Z3_sort>
 			     (static_cast<Z3_ast> (sort)));
 	}
-      else if (isOpX<INT_TY> (e))
+      else if (isOpX<INT_TY> (e)){
 	res = reinterpret_cast<Z3_ast> (Z3_mk_int_sort (ctx));
-      else if (isOpX<REAL_TY> (e))
-	res = reinterpret_cast<Z3_ast> (Z3_mk_real_sort (ctx));
+      std::cout << e << "\n";
+      }
+      else if (isOpX<REAL_TY> (e)) {
+        res = reinterpret_cast<Z3_ast> (Z3_mk_real_sort(ctx));
+        std::cout << e << "\n";
+      }
       else if (isOpX<BOOL_TY> (e))
 	res = reinterpret_cast<Z3_ast> (Z3_mk_bool_sort (ctx));
-      else if (isOpX<AD_TY> (e))
-  res = reinterpret_cast<Z3_ast> (Z3_mk_int_sort (ctx)); // GF: hack for now
+      else if (isOpX<AD_TY> (e)) {
+        res = reinterpret_cast<Z3_ast> (Z3_mk_datatype_sort(ctx, Z3_mk_string_symbol(ctx, lexical_cast<std::string>(e->left ()).c_str())));
+      }// GF: hack for now
       else if (isOpX<ARRAY_TY> (e))
       {
-        z3::ast _idx_sort (marshal (e->left (), ctx, cache, seen));
-        z3::ast _val_sort (marshal (e->right (), ctx, cache, seen));
+        z3::ast _idx_sort (marshal (e->left (), ctx, cache, seen, adts, adts_seen));
+        z3::ast _val_sort (marshal (e->right (), ctx, cache, seen, adts, adts_seen));
         Z3_sort idx_sort = reinterpret_cast<Z3_sort> 
           (static_cast<Z3_ast> (_idx_sort));
         Z3_sort val_sort = reinterpret_cast<Z3_sort> 
@@ -176,7 +182,7 @@ namespace ufo
 
 	  for (size_t i = 0; i < bind::domainSz (e); ++i)
 	    {
-	      z3::ast a (marshal (bind::domainTy (e, i), ctx, cache, seen));
+	      z3::ast a (marshal (bind::domainTy (e, i), ctx, cache, seen, adts, adts_seen));
 	      pinned.push_back (a);
 	      domain [i] = reinterpret_cast<Z3_sort> (static_cast<Z3_ast>(a));
 	    }
@@ -185,7 +191,7 @@ namespace ufo
 	  z3::sort range (ctx,
 			  reinterpret_cast<Z3_sort>
 			  (static_cast<Z3_ast>
-			   (marshal (bind::rangeTy (e), ctx, cache, seen))));
+			   (marshal (bind::rangeTy (e), ctx, cache, seen, adts, adts_seen))));
 
 
 	  Expr fname = bind::fname (e);
@@ -211,7 +217,7 @@ namespace ufo
 	  z3::func_decl zfdecl (ctx,
 				reinterpret_cast<Z3_func_decl>
 				(static_cast<Z3_ast>
-				 (marshal (bind::fname (e), ctx, cache, seen))));
+				 (marshal (bind::fname (e), ctx, cache, seen, adts, adts_seen))));
 
 
 	  // -- marshall all arguments except for the first one
@@ -224,7 +230,7 @@ namespace ufo
 	  for (ENode::args_iterator it = ++ (e->args_begin ()),
 		 end = e->args_end (); it != end; ++it)
 	    {
-	      z3::ast a (marshal (*it, ctx, cache, seen));
+	      z3::ast a (marshal (*it, ctx, cache, seen, adts, adts_seen));
 	      pinned_args.push_back (a);
 	      args [pos++] = a;
 	    }
@@ -239,11 +245,11 @@ namespace ufo
         for (int i = 0; i < e->arity() - 1; i++)
           vars.push_back(bind::fapp(e->arg(i)));
 
-        z3::ast ast (marshal (e->last(), ctx, cache, seen)); //z3.toAst (e->last()));
+        z3::ast ast (marshal (e->last(), ctx, cache, seen, adts, adts_seen)); //z3.toAst (e->last()));
         std::vector<Z3_app> bound;
         bound.reserve (boost::size (vars));
         for (const Expr &v : vars)
-          bound.push_back (Z3_to_app (ctx, marshal (v, ctx, cache, seen)));
+          bound.push_back (Z3_to_app (ctx, marshal (v, ctx, cache, seen, adts, adts_seen)));
 
         if (isOpX<FORALL> (e))
           res = Z3_mk_forall_const (ctx, 0,
@@ -265,6 +271,7 @@ namespace ufo
 
       int arity = e->arity ();
       /** other terminal expressions */
+      //TODO: WHAT IS DIFFERENT BETWEEN TWO MARSHALS???
       if (arity == 0) return M::marshal (e, ctx, cache, seen);
 
       else if (arity == 1)
@@ -272,49 +279,49 @@ namespace ufo
         // -- then it's a NEG or UN_MINUS
         if (isOpX<UN_MINUS>(e))
         {
-          z3::ast arg = marshal (e->left(), ctx, cache, seen);
+          z3::ast arg = marshal (e->left(), ctx, cache, seen, adts, adts_seen);
           return z3::ast (ctx, Z3_mk_unary_minus(ctx, arg));
         }
 
         if (isOpX<NEG>(e))
         {
-          z3::ast arg = marshal (e->left(), ctx, cache, seen);
+          z3::ast arg = marshal (e->left(), ctx, cache, seen, adts, adts_seen);
           return z3::ast (ctx, Z3_mk_not(ctx, arg));
         }
         if (isOpX<ARRAY_DEFAULT> (e))
         {
-          z3::ast arg = marshal (e->left(), ctx, cache, seen);
+          z3::ast arg = marshal (e->left(), ctx, cache, seen, adts, adts_seen);
           return z3::ast (ctx, Z3_mk_array_default (ctx, arg));
         }
         if (isOpX<BNOT>(e))
         {
-          z3::ast arg = marshal (e->left(), ctx, cache, seen);
+          z3::ast arg = marshal (e->left(), ctx, cache, seen, adts, adts_seen);
           return z3::ast (ctx, Z3_mk_bvnot(ctx, arg));
         }
         if (isOpX<BNEG>(e))
         {
-          z3::ast arg = marshal (e->left(), ctx, cache, seen);
+          z3::ast arg = marshal (e->left(), ctx, cache, seen, adts, adts_seen);
           return z3::ast (ctx, Z3_mk_bvneg(ctx, arg));
         }
         if (isOpX<BREDAND>(e))
         {
-          z3::ast arg = marshal (e->left(), ctx, cache, seen);
+          z3::ast arg = marshal (e->left(), ctx, cache, seen, adts, adts_seen);
           return z3::ast (ctx, Z3_mk_bvredand(ctx, arg));
         }
         if (isOpX<BREDOR>(e))
         {
-          z3::ast arg = marshal (e->left(), ctx, cache, seen);
+          z3::ast arg = marshal (e->left(), ctx, cache, seen, adts, adts_seen);
           return z3::ast (ctx, Z3_mk_bvredor(ctx, arg));
         }
         if (isOpX<INT2BV>(e))
         {
-          z3::ast arg = marshal (e->left(), ctx, cache, seen);
+          z3::ast arg = marshal (e->left(), ctx, cache, seen, adts, adts_seen);
           //TODO: SECOND NUMBER IS THE AMOUNT OF BITS IN THE BV ENCODING
           return z3::ast (ctx, Z3_mk_int2bv(ctx, 64, arg));
         }
         if (isOpX<BV2INT>(e))
         {
-          z3::ast arg = marshal (e->left(), ctx, cache, seen);
+          z3::ast arg = marshal (e->left(), ctx, cache, seen, adts, adts_seen);
           //TODO: BOOL DESCRIBES IF NUMBER IS UNSIGNED OR NOT
           return z3::ast (ctx, Z3_mk_bv2int(ctx, arg, true));
         }
@@ -323,8 +330,8 @@ namespace ufo
       }
       else if (arity == 2)
       {
-        z3::ast t1 = marshal(e->left(), ctx, cache, seen);
-        z3::ast t2 = marshal(e->right(), ctx, cache, seen);
+        z3::ast t1 = marshal(e->left(), ctx, cache, seen, adts, adts_seen);
+        z3::ast t2 = marshal(e->right(), ctx, cache, seen, adts, adts_seen);
 
         Z3_ast args [2] = {t1, t2};
 
@@ -458,7 +465,7 @@ namespace ufo
       else if (isOpX<BEXTRACT> (e))
       {
         assert (bv::high (e) > bv::low (e));
-        z3::ast a (ctx, marshal (bv::earg (e), ctx, cache, seen));
+        z3::ast a (ctx, marshal (bv::earg (e), ctx, cache, seen, adts, adts_seen));
         res = Z3_mk_extract (ctx, bv::high (e), bv::low (e), a);
       }
       else if (isOpX<AND> (e) || isOpX<OR> (e) ||
@@ -473,7 +480,7 @@ namespace ufo
         for (ENode::args_iterator it = e->args_begin(), end = e->args_end();
              it != end; ++it)
         {
-          z3::ast a = z3::ast (ctx, marshal (*it, ctx, cache, seen));
+          z3::ast a = z3::ast (ctx, marshal (*it, ctx, cache, seen, adts, adts_seen));
           args.push_back (a);
           pinned.push_back (a);
         }
@@ -607,6 +614,7 @@ namespace ufo
               Z3_ast zdecl = Z3_func_decl_to_ast(ctx, decl);
               adts.push_back(unmarshal(z3::ast(ctx, zdecl), efac, cache, seen, adts_seen, adts, accessors));
             }
+
           }
           return sort::adTy (adt_name);
         }
