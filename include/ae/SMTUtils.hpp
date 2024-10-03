@@ -30,7 +30,7 @@ namespace ufo
     SMTUtils (ExprFactory& _efac, unsigned _to) :
         efac(_efac), z3(efac), smt (z3, _to), can_get_model(0), m(NULL) {}
 
-    SMTUtils (ExprFactory& _efac, ExprVector& _accessors, unsigned _to, bool bv) :
+    SMTUtils (ExprFactory& _efac, ExprVector& _accessors, unsigned _to, bool _bv) :
         efac(_efac), z3(efac), smt (z3, _to), can_get_model(0), m(NULL)
         {
           approxBV = _bv;
