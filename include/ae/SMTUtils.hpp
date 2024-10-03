@@ -190,7 +190,7 @@ namespace ufo
       else
       {
         lastCand = conjoin(cnjs, efac);
-        if (...)
+//        if (...)
 //        serialize_formula(lastCand);
         smt.assertExpr(lastCand);
       }
