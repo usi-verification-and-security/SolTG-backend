@@ -2336,6 +2336,7 @@ namespace expr
                 if (isOpX<STORE>(v)) return sort::arrayTy(typeOf(v->right()), typeOf(v->last()));
                 if (isOpX<SELECT>(v)) return typeOf(v->right());
                 if (isOpX<CONST_ARRAY>(v)) return sort::arrayTy(v->left(), typeOf(v->right()));
+                if (isOpX<AD_TY>(v)) return sort::adTy(v->right ());
 
 //      std::cerr << "WARNING: could not infer type of: " << *v << "\n";
 //      assert (0 && "Unreachable");

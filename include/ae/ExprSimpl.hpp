@@ -2081,6 +2081,7 @@ namespace ufo
     return dagVisit (mu, exp);
   }
 
+  // TODO: Find BV And Rewrite
   struct FindNonlinAndRewrite
   {
     ExprVector& vars;

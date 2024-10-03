@@ -1,6 +1,7 @@
 #ifndef SMTUTILS__HPP__
 #define SMTUTILS__HPP__
 #include <assert.h>
+#include <fstream>
 
 #include "ae/ExprSimpl.hpp"
 #include "ufo/Smt/EZ3.hh"
@@ -19,6 +20,7 @@ namespace ufo
     bool can_get_model;
     ZSolver<EZ3>::Model* m;
     ExprSet accessors;
+    bool approxBV;
 
   public:
 
@@ -28,9 +30,10 @@ namespace ufo
     SMTUtils (ExprFactory& _efac, unsigned _to) :
         efac(_efac), z3(efac), smt (z3, _to), can_get_model(0), m(NULL) {}
 
-    SMTUtils (ExprFactory& _efac, ExprVector& _accessors, unsigned _to) :
+    SMTUtils (ExprFactory& _efac, ExprVector& _accessors, unsigned _to, bool bv) :
         efac(_efac), z3(efac), smt (z3, _to), can_get_model(0), m(NULL)
         {
+          approxBV = _bv;
           for(auto b : _accessors)
             if (b->arity() == 3)
               accessors.insert(b);
@@ -38,6 +41,46 @@ namespace ufo
               // this should not happen
             ;
         }
+
+      SMTUtils (ExprFactory& _efac, ExprVector& _accessors, unsigned _to, std::vector<Expr> adts, std::vector<std::string> adts_seen) :
+              efac(_efac), z3(efac), smt (z3, _to), can_get_model(0), m(NULL)
+      {
+
+        z3.adts = adts;
+        z3.adts_seen = adts_seen;
+        for(auto b : _accessors)
+          if (b->arity() == 3)
+            accessors.insert(b);
+          else
+            // this should not happen
+            ;
+      }
+
+      int stat = 0;
+      string filename = "_file";
+      template <typename T> void dumpToFile(T& e)
+      {
+        ofstream outfile;
+        string name = filename + lexical_cast<string>(stat) + ".smt2";
+        outfile.open (name);
+        outfile << "(set-logic ALL)\n\n";
+
+        ExprSet allConstructors;
+//        filter (conjoin(e,efac), bind::Is)
+
+        ExprSet allVars;
+        filter (conjoin(e, efac), bind::IsConst (),
+                inserter (allVars, allVars.begin()));
+        for (auto & v : allVars)
+          outfile << "(declare-const " << z3.toSmtLib(v)
+                  << " " << z3.toSmtLib(typeOf(v)) << ")\n";
+        outfile << "\n";
+        for (auto & a : e)
+          serialize_formula(a, outfile);
+        outfile << "\n(check-sat)\n";
+        outfile.close();
+        stat++;
+      }
 
     Expr getAccessor(string name, Expr type)
     {
@@ -147,6 +190,7 @@ namespace ufo
       else
       {
         lastCand = conjoin(cnjs, efac);
+        if (...)
 //        serialize_formula(lastCand);
         smt.assertExpr(lastCand);
       }
@@ -756,11 +800,11 @@ namespace ufo
       else out << z3.toSmtLib (e);
     }
 
-    void serialize_formula(Expr form)
+    void serialize_formula(Expr form, ostream& outfile = outs())
     {
-      outs() << "(assert ";
-      print (form);
-      outs() << ")\n";
+      outfile << "(assert ";
+      print (form, outfile);
+      outfile << ")\n";
     }
   };
 

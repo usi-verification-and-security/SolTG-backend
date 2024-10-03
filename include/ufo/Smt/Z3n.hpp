@@ -283,23 +283,26 @@ namespace ufo
             Z3_set_ast_print_mode (ctx, Z3_PRINT_SMTLIB2_COMPLIANT);
         }
 
+    public:
+        std::vector<Expr> adts;
+        std::vector<std::string> adts_seen;
+
     protected:
         z3::context &get_ctx () { return ctx; }
-        std::vector<Expr> adts;
         std::vector<Expr> accessors;
-
+        ast_expr_map seen_ast;
+        expr_ast_map seen_expr;
         z3::ast toAst (Expr e)
         {
-            expr_ast_map seen;
-            return M::marshal (e, get_ctx (), cache.left, seen);
+            return M::marshal (e, get_ctx (), cache.left, seen_expr, adts, adts_seen);
         }
         Expr toExpr (z3::ast a)
         {
             if (!a) return Expr();
 
-            ast_expr_map seen;
-            std::vector<std::string> adts_seen;
-            return U::unmarshal (a, get_efac (), cache.right, seen, adts_seen, adts, accessors);
+//            ast_expr_map seen;
+            auto res = U::unmarshal (a, get_efac (), cache.right, seen_ast, adts_seen, adts, accessors);
+            return res;
         }
 
         ExprFactory &get_efac () { return efac; }

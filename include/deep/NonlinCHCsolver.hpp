@@ -72,7 +72,7 @@ namespace ufo
 
       NonlinCHCsolver(CHCs &r, map<string, map<string,vector<string>>> & s) :
         m_efac(r.m_efac), ruleManager(r),
-        u(m_efac, r.m_z3.getAdtAccessors(), 10000), signature(s) {}
+        u(m_efac, r.m_z3.getAdtAccessors(), 10000, r.m_z3.adts, r.m_z3.adts_seen), signature(s) {}
 
       bool checkAllOver(bool checkQuery = false) {
           for (auto &hr: ruleManager.chcs) {
@@ -652,11 +652,11 @@ namespace ufo
             tree_map.clear();
             varCnt = 0;
             treeToSMT(t->getRoot());
-
 //            serialize();
 //            for(auto e: ssa){
 //              outs() << "Expr: " << (*e) << "\n";
 //            }
+//            u.dumpToFile(ssa);
 //            pprint(ssa);
             auto res = u.isSat(ssa);
             trees_checked_per_cur_bnd++;
