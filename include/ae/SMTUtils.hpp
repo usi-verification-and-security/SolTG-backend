@@ -190,8 +190,16 @@ namespace ufo
       else
       {
         lastCand = conjoin(cnjs, efac);
-//        if (...)
+        approxBV = true;
+        if (approxBV){
+          ExprVector invAndIterVars;
+          ExprMap extraVars;
+          lastCand = findBVAndRewrite(lastCand,invAndIterVars,extraVars);
+          invAndIterVars.push_back(lastCand);
+          dumpToFile(invAndIterVars);
+        }
 //        serialize_formula(lastCand);
+        print(lastCand);
         smt.assertExpr(lastCand);
       }
       boost::tribool res = smt.solve ();

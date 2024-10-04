@@ -2222,6 +2222,7 @@ namespace expr
             { return constDecl (name, mk<REAL_TY> (name->efac ())); }
             inline Expr adtConstDecl (Expr name)
             { return constDecl (name, mk<AD_TY> (name->efac ())); }
+//            inline Expr bvConstDecl (Expr name, int size)
 
             template <typename Range>
             Expr fdecl (Expr fname, const Range &args)
@@ -2306,106 +2307,6 @@ namespace expr
             inline bool isRealConst (Expr v) { return isConst<REAL_TY> (v); }
             inline bool isAdtConst (Expr v) { return isConst<AD_TY> (v); }
 
-            inline Expr typeOf (Expr v)
-            {
-                using namespace bind;
-                if (isOpX<VARIANT> (v)) return typeOf (variant::mainVariant (v));
-
-                if (isOpX<FAPP> (v))
-                {
-                    assert (isOpX<FDECL> (v->left ()));
-                    return rangeTy (v->left ());
-                }
-
-                if (isOpX<ITE>(v)) return typeOf(v->last());
-                if (isOp<BoolOp>(v) || isOp<ComparissonOp> (v)) return mk<BOOL_TY> (v->efac ());
-                if (isOpX<MPZ> (v)) return mk<INT_TY> (v->efac ());
-                if (isOpX<MPQ> (v)) return mk<REAL_TY> (v->efac ());
-
-                if (isOpX<BIND> (v)) return bind::type (v);
-
-                if (isBoolVar (v) || isBoolConst (v))
-                    return mk<BOOL_TY> (v->efac ());
-                if (isIntVar (v) || isIntConst (v))
-                    return mk<INT_TY> (v->efac ());
-                if (isRealVar (v) || isRealConst (v))
-                    return mk<REAL_TY> (v->efac ());
-
-                if (isOp<NumericOp>(v)) return typeOf(v->left());
-
-                if (isOpX<STORE>(v)) return sort::arrayTy(typeOf(v->right()), typeOf(v->last()));
-                if (isOpX<SELECT>(v)) return typeOf(v->right());
-                if (isOpX<CONST_ARRAY>(v)) return sort::arrayTy(v->left(), typeOf(v->right()));
-                if (isOpX<AD_TY>(v)) return sort::adTy(v->right ());
-
-//      std::cerr << "WARNING: could not infer type of: " << *v << "\n";
-//      assert (0 && "Unreachable");
-
-                return Expr();
-            }
-            inline Expr sortOf (Expr v) {return typeOf (v);}
-
-            Expr mkMPZ(boost::multiprecision::cpp_int a, ExprFactory& efac)
-            {
-                return mkTerm (mpz_class (boost::lexical_cast<std::string>(a)), efac);
-            }
-
-            Expr mkMPZ(int a, ExprFactory& efac)
-            {
-                return mkTerm (mpz_class (a), efac);
-            }
-
-            struct FAPP_PS
-            {
-                static inline void print (std::ostream &OS,
-                                          int depth,
-                                          int brkt,
-                                          const std::string &name,
-                                          const std::vector<ENode*> &args)
-                {
-                    if (args.size () > 1) OS << "(";
-
-                    // -- strip fdecl if there is one
-                    ENode *fname = args [0];
-                    if (isOpX<FDECL> (fname)) fname = fname->arg (0);
-                    fname->Print (OS, depth+2, false);
-
-                    for (unsigned i = 1; i < args.size (); ++i)
-                    {
-                        OS << " ";
-                        args [i]->Print (OS, depth+2, false);
-                    }
-
-                    if (args.size () > 1) OS << ")";
-                }
-
-            };
-
-            /// Creates a new fdecl with the same signature as the given
-            /// fdecl and a new name
-            inline Expr rename (Expr fdecl, Expr name)
-            {
-                assert (isOpX<FDECL> (fdecl));
-                ExprVector _args;
-                _args.reserve (fdecl->arity ());
-                _args.push_back (name);
-                _args.insert (_args.end (), ++(fdecl->args_begin ()), fdecl->args_end ());
-                return mknary<FDECL> (_args);
-            }
-
-            /// construct a new expression by applying fdecl to the same
-            /// arguments as fapp. For example, reapp of g(a,b) and f is f(a, b)
-            inline Expr reapp (Expr fapp, Expr fdecl)
-            {
-                assert (isOpX<FDECL> (fdecl));
-                assert (isOpX<FAPP> (fapp));
-
-                ExprVector _args;
-                _args.reserve (fapp->arity ());
-                _args.push_back (fdecl);
-                _args.insert (_args.end (), ++(fapp->args_begin ()), fapp->args_end ());
-                return mknary<FAPP> (_args);
-            }
         }
 
 
@@ -2464,12 +2365,119 @@ namespace expr
     }
 }
 
+#include "ExprBv.hh"
+
 namespace expr
 {
     namespace op
     {
         namespace bind
         {
+
+            inline Expr typeOf (Expr v)
+            {
+              using namespace bind;
+              if (isOpX<VARIANT> (v)) return typeOf (variant::mainVariant (v));
+
+              if (isOpX<FAPP> (v))
+              {
+                assert (isOpX<FDECL> (v->left ()));
+                return rangeTy (v->left ());
+              }
+
+              if (isOpX<ITE>(v)) return typeOf(v->last());
+              if (isOp<BoolOp>(v) || isOp<ComparissonOp> (v)) return mk<BOOL_TY> (v->efac ());
+              if (isOpX<MPZ> (v)) return mk<INT_TY> (v->efac ());
+              if (isOpX<MPQ> (v)) return mk<REAL_TY> (v->efac ());
+
+              if (isOpX<BIND> (v)) return bind::type (v);
+
+              if (isBoolVar (v) || isBoolConst (v))
+                return mk<BOOL_TY> (v->efac ());
+              if (isIntVar (v) || isIntConst (v))
+                return mk<INT_TY> (v->efac ());
+              if (isRealVar (v) || isRealConst (v))
+                return mk<REAL_TY> (v->efac ());
+
+              if (isOp<NumericOp>(v)) return typeOf(v->left());
+
+              if (isOpX<STORE>(v)) return sort::arrayTy(typeOf(v->right()), typeOf(v->last()));
+              if (isOpX<SELECT>(v)) return typeOf(v->right());
+              if (isOpX<CONST_ARRAY>(v)) return sort::arrayTy(v->left(), typeOf(v->right()));
+              if (isOpX<AD_TY>(v)) return sort::adTy(v->left ());
+              if (isOpX<BVSORT>(v)) return bv::bvsort (bv::width(v), v->efac());
+              if (isOp<BvOp>(v)) return bv::bvsort (64, v->efac());
+
+
+//      std::cerr << "WARNING: could not infer type of: " << *v << "\n";
+//      assert (0 && "Unreachable");
+
+              return Expr();
+            }
+            inline Expr sortOf (Expr v) {return typeOf (v);}
+
+            Expr mkMPZ(boost::multiprecision::cpp_int a, ExprFactory& efac)
+            {
+              return mkTerm (mpz_class (boost::lexical_cast<std::string>(a)), efac);
+            }
+
+            Expr mkMPZ(int a, ExprFactory& efac)
+            {
+              return mkTerm (mpz_class (a), efac);
+            }
+
+            struct FAPP_PS
+            {
+                static inline void print (std::ostream &OS,
+                                          int depth,
+                                          int brkt,
+                                          const std::string &name,
+                                          const std::vector<ENode*> &args)
+                {
+                  if (args.size () > 1) OS << "(";
+
+                  // -- strip fdecl if there is one
+                  ENode *fname = args [0];
+                  if (isOpX<FDECL> (fname)) fname = fname->arg (0);
+                  fname->Print (OS, depth+2, false);
+
+                  for (unsigned i = 1; i < args.size (); ++i)
+                  {
+                    OS << " ";
+                    args [i]->Print (OS, depth+2, false);
+                  }
+
+                  if (args.size () > 1) OS << ")";
+                }
+
+            };
+
+            /// Creates a new fdecl with the same signature as the given
+            /// fdecl and a new name
+            inline Expr rename (Expr fdecl, Expr name)
+            {
+              assert (isOpX<FDECL> (fdecl));
+              ExprVector _args;
+              _args.reserve (fdecl->arity ());
+              _args.push_back (name);
+              _args.insert (_args.end (), ++(fdecl->args_begin ()), fdecl->args_end ());
+              return mknary<FDECL> (_args);
+            }
+
+            /// construct a new expression by applying fdecl to the same
+            /// arguments as fapp. For example, reapp of g(a,b) and f is f(a, b)
+            inline Expr reapp (Expr fapp, Expr fdecl)
+            {
+              assert (isOpX<FDECL> (fdecl));
+              assert (isOpX<FAPP> (fapp));
+
+              ExprVector _args;
+              _args.reserve (fapp->arity ());
+              _args.push_back (fdecl);
+              _args.insert (_args.end (), ++(fapp->args_begin ()), fapp->args_end ());
+              return mknary<FAPP> (_args);
+            }
+
             struct BoundVar
             {
                 unsigned var;
@@ -3240,8 +3248,6 @@ namespace expr
         }
     }
 }
-
-#include "ExprBv.hh"
 
 namespace std
 {

@@ -141,7 +141,8 @@ namespace expr
     NOP(BEXT_ROTATE_RIGHT,"bvextrotright",FUNCTIONAL,BvOp)
     NOP(INT2BV,"int2bv",FUNCTIONAL,BvOp)
     NOP(BV2INT,"bv2int",FUNCTIONAL,BvOp)
-    
+
+
     namespace bv
     {
       /* XXX Add helper methods as needed */

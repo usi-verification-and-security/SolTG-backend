@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "ufo/Smt/EZ3.hh"
+#include "ufo/Expr.hpp"
 
 using namespace std;
 using namespace expr::op::bind;
@@ -54,6 +55,13 @@ namespace ufo
       (terms.size() == 1) ? *terms.begin() :
       mknary<MULT>(terms);
   }
+
+    template<typename Range> static Expr mkbv(Range& terms, ExprFactory &efac){
+      return
+              (terms.size() == 0) ? mkMPZ (1, efac) :
+              (terms.size() == 1) ? *terms.begin() :
+              mknary<INT2BV>(terms);
+    }
 
   template<typename Range1, typename Range2> static bool emptyIntersect(Range1& av, Range2& bv){
     for (auto &var1: av){
@@ -256,6 +264,13 @@ namespace ufo
     return isOpX<ARRAY_TY>(t);
   }
 
+  inline static bool isBV(Expr a)
+  {
+    Expr t = typeOf(a);
+    if (t == NULL) return false;
+    return isOpX<BVSORT>(t);
+  }
+
   inline static bool isNumericEq(Expr a)
   {
     return isOpX<EQ>(a) && isNumeric(a->left());
@@ -331,7 +346,19 @@ namespace ufo
     }
   }
 
-  /**
+  inline static void getBVOps (Expr a, ExprVector &ops)
+  {
+    if (isOpX<BVSORT>(a)){
+      for (unsigned i = 0; i < a->arity(); i++){
+        getBVOps(a->arg(i), ops);
+      }
+    } else {
+      ops.push_back(a);
+    }
+  }
+
+
+    /**
    * Represent Expr as multiplication
    */
   inline static Expr mult(Expr e){
@@ -2081,7 +2108,68 @@ namespace ufo
     return dagVisit (mu, exp);
   }
 
-  // TODO: Find BV And Rewrite
+  struct FindBVAndRewrite {
+      ExprVector& vars;
+      ExprMap& extraVars;
+
+      FindBVAndRewrite (ExprVector& _vars, ExprMap& _extraVars) :
+        vars(_vars), extraVars(_extraVars) {};
+
+      Expr operator() (Expr t)
+      {
+        Expr key = t;
+        std::cout << t << "\n";
+        bool tp = isBV(t->left());
+        if(t->right()){
+          tp = tp || isBV(t->right());
+        }
+        for (ENode::args_iterator it = t->args_begin(), end = t->args_end();
+             it != end; ++it){
+          tp = tp || isBV(*it);
+        }
+//                || isBV(t->right());
+        if (tp){
+          std::cout << t << "\n";
+          if (extraVars[key] == NULL)
+          {
+            Expr new_name = mkTerm<string> ("__bvi__" + to_string(extraVars.size()), t->getFactory());
+            Expr var =  mkConst(new_name, typeOf(t));
+            extraVars[key] = var;
+          }
+          return extraVars[key];
+        }
+//        if (isOpX<BV2INT>(t)) {
+//          std::cout << t << "\n";
+//          if (extraVars[key] == NULL)
+//          {
+//            Expr new_name = mkTerm<string> ("__bvi__" + to_string(extraVars.size()), t->getFactory());
+//            Expr var = intConst(new_name);
+//            extraVars[key] = var;
+//          }
+//          return extraVars[key];
+//        }
+//        if ( isOpX<INT2BV>(t) || isOpX<BAND>(t) || isOpX<BXOR>(t) || isOpX<BNOT>(t) || isOpX<BSLT>(t))
+//        {
+//          std::cout << t << "\n";
+//          if (extraVars[key] == NULL)
+//          {
+//            Expr new_name = mkTerm<string> ("__bv__" + to_string(extraVars.size()), t->getFactory());
+//            Expr var = mkConst(new_name, bv::bvsort(64, t->getFactory()));
+//            extraVars[key] = var;
+//          }
+//          return extraVars[key];
+//        }
+        return t;
+      }
+  };
+
+  inline static Expr findBVAndRewrite (Expr exp, ExprVector& vars, ExprMap& extraVars)
+  {
+    RW<FindBVAndRewrite> mu(new FindBVAndRewrite(vars, extraVars));
+    return dagVisit (mu, exp);
+  }
+
+    // TODO: Find BV And Rewrite
   struct FindNonlinAndRewrite
   {
     ExprVector& vars;
