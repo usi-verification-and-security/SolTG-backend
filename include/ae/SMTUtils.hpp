@@ -176,7 +176,7 @@ namespace ufo
       }
     }
 
-    template <typename T> boost::tribool isSat(T& cnjs, bool reset=true)
+    template <typename T> boost::tribool isSat(T& cnjs, bool reset=true, bool approxBV=false)
     {
       if (m != NULL) { free(m); m = NULL; }
       if (reset) smt.reset();
@@ -190,7 +190,6 @@ namespace ufo
       else
       {
         lastCand = conjoin(cnjs, efac);
-        approxBV = true;
         if (approxBV){
           ExprVector invAndIterVars;
           ExprMap extraVars;
@@ -198,8 +197,6 @@ namespace ufo
           invAndIterVars.push_back(lastCand);
           dumpToFile(invAndIterVars);
         }
-//        serialize_formula(lastCand);
-        print(lastCand);
         smt.assertExpr(lastCand);
       }
       boost::tribool res = smt.solve ();
@@ -246,24 +243,33 @@ namespace ufo
     /**
      * SMT-check
      */
-    boost::tribool isSat(Expr a, bool reset=true)
+    boost::tribool isSat(Expr a, bool reset=true, bool simpBv=true)
     {
       ExprSet cnjs;
       getConj(a, cnjs);
-      return isSat(cnjs, reset);
+      return isSat(cnjs, reset, simpBv);
     }
 
     /**
      * Incremental SMT-check
      */
-    boost::tribool isSatIncrem(ExprVector& v, int& sz)
+    boost::tribool isSatIncrem(ExprVector& v, int& sz, bool approxBV=false)
     {
       sz = 0;
       while (sz < v.size())
       {
-        auto res = isSat(v[sz], sz == 0);
+        Expr bla = v[sz];
+        if(approxBV) {
+          ExprVector invAndIterVars;
+          ExprMap extraVars;
+          bla = findBVAndRewrite(bla, invAndIterVars, extraVars);
+        }
+        auto res = isSat(bla, sz == 0);
         sz++;
-        if (res == false || indeterminate(res)) return res;
+        if (res == false ) return res;
+        if (indeterminate(res)){
+          return res;
+        }
       }
       return true;    // sat
     }

@@ -687,7 +687,7 @@ namespace deep {
 
     void getNext(vector<chcTree *>  &complete_trees){
       vector<chcTree *> new_trees;
-      for (int i = 0; i < trees.size(); i++){
+      for (int i = 0; i < trees.size() ; i++){
         vector<vector<chc_structure>> all_permutations = trees[i]->get_all_permutations();
         for (auto ap : all_permutations){
           //clone tree

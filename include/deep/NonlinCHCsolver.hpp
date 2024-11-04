@@ -661,9 +661,9 @@ namespace ufo
             auto res = u.isSat(ssa);
             trees_checked_per_cur_bnd++;
             time_t my_time = time(NULL);
-            outs () << "rq_t : " << ctime(&my_time);
+            outs () << "rq_t : " << ctime(&my_time) << "\n";
             stringstream strs;
-            strs << "dot_dump_cur_bnd_" << cur_bnd << "_depth_" << depth << "_ind_" << trees_checked_per_cur_bnd;
+            strs << "dot_dump_cur_bnd_" << cur_bnd << "_depth_" << depth << "_ind_" << trees_checked_per_cur_bnd << "\n";
             if (false == res) {
               // strs << "_unsat.dot";
               // string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();

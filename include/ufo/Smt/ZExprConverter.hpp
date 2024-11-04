@@ -73,11 +73,9 @@ namespace ufo
 	}
       else if (isOpX<INT_TY> (e)){
 	res = reinterpret_cast<Z3_ast> (Z3_mk_int_sort (ctx));
-      std::cout << e << "\n";
       }
       else if (isOpX<REAL_TY> (e)) {
         res = reinterpret_cast<Z3_ast> (Z3_mk_real_sort(ctx));
-        std::cout << e << "\n";
       }
       else if (isOpX<BOOL_TY> (e))
 	res = reinterpret_cast<Z3_ast> (Z3_mk_bool_sort (ctx));

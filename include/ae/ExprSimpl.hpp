@@ -2117,48 +2117,25 @@ namespace ufo
 
       Expr operator() (Expr t)
       {
-        Expr key = t;
-        std::cout << t << "\n";
-        bool tp = isBV(t->left());
-        if(t->right()){
-          tp = tp || isBV(t->right());
+        if(isBV(t)){
+          return t;
         }
+        bool tp = false;
         for (ENode::args_iterator it = t->args_begin(), end = t->args_end();
              it != end; ++it){
           tp = tp || isBV(*it);
         }
-//                || isBV(t->right());
         if (tp){
-          std::cout << t << "\n";
-          if (extraVars[key] == NULL)
+          std::cout << t << ":" << typeOf(t) << "\n";
+//          std::cout  << "\n";
+          if (extraVars[t] == NULL)
           {
-            Expr new_name = mkTerm<string> ("__bvi__" + to_string(extraVars.size()), t->getFactory());
+            Expr new_name = mkTerm<string> ("__bv__" + to_string(extraVars.size()), t->getFactory());
             Expr var =  mkConst(new_name, typeOf(t));
-            extraVars[key] = var;
+            extraVars[t] = var;
           }
-          return extraVars[key];
+          return extraVars[t];
         }
-//        if (isOpX<BV2INT>(t)) {
-//          std::cout << t << "\n";
-//          if (extraVars[key] == NULL)
-//          {
-//            Expr new_name = mkTerm<string> ("__bvi__" + to_string(extraVars.size()), t->getFactory());
-//            Expr var = intConst(new_name);
-//            extraVars[key] = var;
-//          }
-//          return extraVars[key];
-//        }
-//        if ( isOpX<INT2BV>(t) || isOpX<BAND>(t) || isOpX<BXOR>(t) || isOpX<BNOT>(t) || isOpX<BSLT>(t))
-//        {
-//          std::cout << t << "\n";
-//          if (extraVars[key] == NULL)
-//          {
-//            Expr new_name = mkTerm<string> ("__bv__" + to_string(extraVars.size()), t->getFactory());
-//            Expr var = mkConst(new_name, bv::bvsort(64, t->getFactory()));
-//            extraVars[key] = var;
-//          }
-//          return extraVars[key];
-//        }
         return t;
       }
   };

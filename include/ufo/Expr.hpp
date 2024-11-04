@@ -2406,6 +2406,9 @@ namespace expr
               if (isOpX<CONST_ARRAY>(v)) return sort::arrayTy(v->left(), typeOf(v->right()));
               if (isOpX<AD_TY>(v)) return sort::adTy(v->left ());
               if (isOpX<BVSORT>(v)) return bv::bvsort (bv::width(v), v->efac());
+              if (isOpX<BULT>(v) || isOpX<BULE>(v) || isOpX<BUGE>(v) || isOpX<BUGT>(v) || isOpX<BSLE>(v) ||
+                      isOpX<BSLT>(v) || isOpX<BSGT>(v) || isOpX<BSGE>(v)) return mk<BOOL_TY> (v->efac ());
+              if (isOpX<BV2INT>(v)) return mk<INT_TY> (v->efac ());
               if (isOp<BvOp>(v)) return bv::bvsort (64, v->efac());
 
 
