@@ -10,7 +10,6 @@
 #include <map>
 #include <time.h>
 #include <regex>
-// #include <stdlib.h>
 
 using namespace std;
 using namespace boost;
@@ -287,11 +286,9 @@ namespace ufo
       for (int i = 0; i < ruleManager.chcs.size(); i++){
         if(ruleManager.chcs[i].dstRelation->getId() == exit_v){
           exit_index = i;
-//          break;
+          break;
         }
       }
-      //outs() << "Exit index: " << exit_index << " : id" << exit_v << "\n";
-      //vector<int> entries(entries_tmp.begin(), entries_tmp.end());
       vector<int> entries; //all leaves end with "-1", because sometimes node can be leaf (isFact=true) and not leaf
       entries.push_back(-1);
 
@@ -324,7 +321,6 @@ namespace ufo
           dst_set.insert(ruleManager.chcs[i].dstRelation->getId());
           if(ruleManager.chcs[i].isFact){
             auto entry = ruleManager.chcs[i].dstRelation->getId();
-            // outs() << entry << "\n";
             entries_tmp.insert(entry);
           } else {
             auto tmp_src = ruleManager.chcs[i].srcRelations;
@@ -345,11 +341,9 @@ namespace ufo
         for (int i = 0; i < ruleManager.chcs.size(); i++){
           if(ruleManager.chcs[i].dstRelation->getId() == exit_v){
             exit_index = i;
-//          break;
+            break;
           }
         }
-        //outs() << "Exit index: " << exit_index << " : id" << exit_v << "\n";
-        //vector<int> entries(entries_tmp.begin(), entries_tmp.end());
         vector<int> entries; //all leaves end with "-1", because sometimes node can be leaf (isFact=true) and not leaf
         entries.push_back(-1);
 
@@ -384,8 +378,6 @@ namespace ufo
       }
 
       auto & chc = ruleManager.chcs[t->chc_index];
-//      outs () << "\nssa-ing: ";
-//      ruleManager.print(chc);
 
       if (lev == 1)
       {
@@ -396,7 +388,6 @@ namespace ufo
       }
 
       auto body = chc.body;
-//      outs() << "Body: " << body << "\n";
       body = replaceAll(body, chc.dstVars, srcVars);
       ExprVector newLocs;
       for (auto & lv : chc.locVars)
@@ -414,11 +405,9 @@ namespace ufo
           for (int j = 0; j < chc.srcVars[i].size(); j++)
           {
             Expr new_name = mkTerm<string>("_tg_" + to_string(varCnt++), m_efac);
-//            outs() << "Renaming: " << chc.srcVars[i][j] << " as " << new_name << "\n";
             vars.push_back(cloneVar(chc.srcVars[i][j], new_name));
           }
           body = replaceAll(body, chc.srcVars[i], vars);
-//          outs() << "New Body: " << body << "\n";
           treeToSMT(t->children[i], lev+1, vars);
         }
       }
@@ -426,7 +415,6 @@ namespace ufo
       {
         for (auto & c : t->children) assert(c->chc_index == -1);
       }
-//      outs() << lev << ": " << t->chc_index  << ": " << body << "\n";
       ssa.push_back(body);
     }
 
@@ -436,7 +424,6 @@ namespace ufo
 
       auto & chc = ruleManager.chcs[t->chc_index];
       outs() << " chc: ";
-      //pprint(chc.srcRelations);
       for(auto src: chc.srcRelations) {
         outs() << src << "(" << src->getId() << ")";
       }
@@ -523,7 +510,6 @@ namespace ufo
             {
               if (d->left() == c.srcRelations[k])
               {
-//                src = fapp(d, c.srcVars[k]);
                 srcs.push_back(fapp(d, c.srcVars[k]));
                 break;
               }
@@ -724,7 +710,6 @@ namespace ufo
       }
     }
 
-    // TODO: skeleton of the new implementation
     void exploreTracesNonLinearTG(int bnd)
     {
       set<int> todoCHCs;
@@ -735,9 +720,6 @@ namespace ufo
       fillTodos(todoCHCs);
       map<int, vector<deep::chcTree *>> satTrees;
 
-      //TODO: Preprocessing flow of execution
-
-      //TODO: Actual run
       for (int cur_bnd = 1; cur_bnd <= bnd && !todoCHCs.empty(); cur_bnd++)
       {
         outs () << "new iter with cur_bnd = " << cur_bnd <<"\n";
@@ -759,10 +741,7 @@ namespace ufo
         }
 
         assert(ruleManager.getNumQs() == 1);
-        //ruleManager.print(ruleManager.chcs.back());
         ruleManager.print_parse_results();
-
-        //ruleManager.print();
 
         // 1. restart tree generation (up to some depth, e.g., 10)
         deep::chcTreeGenerator* chcG;
@@ -781,8 +760,6 @@ namespace ufo
           chcG->getNext(trees);
           outs() << "depth: " << depth << "; trees size : " << trees.size() << "\n";
           for (auto t : trees){
-//            if (trees_checked_per_cur_bnd > 200){outs() << "break: 200 trees checked \n"; break;}
-//            satTrees[prev_id].
             auto el = t->get_subset();
             bool is_potential_tree_with_todo = false;
             for (int c : el) {
@@ -806,9 +783,6 @@ namespace ufo
             stringstream strs;
             strs << "dot_dump_cur_bnd_" << cur_bnd << "_depth_" << depth << "_ind_" << trees_checked_per_cur_bnd << "\n";
             if (false == res) {
-              // strs << "_unsat.dot";
-              // string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();
-              // t->printToDot(dotFilename, ruleManager);
               outs () << "unrolling unsat\n";
             }
             else if (true == res) {
@@ -819,17 +793,10 @@ namespace ufo
                 satTrees[id] = {deep::chcTree::clone(t)};
               }
               outs () << "unrolling sat\n";
-              // outs() << "Formula:" << "\n";
-              // pprint(ssa, 5);
-              // strs << "_SAT.dot";
-              // string temp_str = strs.str(); char* dotFilename = (char*) temp_str.c_str();
-              // t->printToDot(dotFilename, ruleManager);
               for (int c : el) {outs() << c << " ";} outs() << "\n";
-              //printTree(t->getRoot(), 0);
               for (int c : el) {
                 if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
                   outs() << "FOUND: " << c << " # number_of_found_branches: " << number_of_tests <<"\n" ;
-                  //outs() << "FOUND: " << ruleManager.chcs[c].dstRelation << "\n";
                   todoCHCs.erase(c); // remove CHCs from `todoCHCs`
                 }
               }
@@ -861,7 +828,6 @@ namespace ufo
               {
                 auto d = ruleManager.chcs.back().srcRelations[fun];
                 string name = lexical_cast<string>(d);
-                // outs() << ruleManager.chcs.back().body << "\n" << "Name: " << name << "\n";
                 for (auto & a : signature)
                 {
                   for (auto & b : a.second)
@@ -943,184 +909,6 @@ namespace ufo
         }
       }
     }
-
-    void exploreTracesNonLinearTGOld(int cur_bnd, int bnd, bool skipTerm)
-    {
-      int number_of_found_branchs = 0;
-      set<int> todoCHCs;
-      auto chcG = initChcTree();
-
-      //ToDo: find out how to get exit and entry values
-      for (int i = 0; i < ruleManager.chcs.size(); i++)
-        todoCHCs.insert(i);
-
-      while (cur_bnd <= bnd && !todoCHCs.empty())
-      {
-        outs () << "new iter with cur_bnd = "<< cur_bnd <<"\n";
-        vector<deep::chcTree *> trees;
-        chcG->getNext(trees);
-        if(trees.size() > 0){
-          outs () << "MORE" <<"\n";
-        }
-        outs() << cur_bnd << endl;
-        outs() << "# of terminals trees: " << trees.size() << " terminals tree: " << endl;
-
-        for (auto t : trees){
-          treeToSMT(t->getRoot());
-          auto res = u.isSat(ssa);
-          if (false == res) outs () << "unrolling unsat\n";
-          else if (true == res) {
-            //ToDo: What should be done here? How to generate data and remove from ToDos
-            outs () << "unrolling sat\n";
-            auto el = t->get_set();
-            set<int> apps;
-            for (int c : el) {
-              if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end()) {
-                apps.insert(c);
-                number_of_found_branchs++;
-                outs() << "FOUND: " << c << " # number_of_found_branches: " << number_of_found_branchs <<"\n" ;
-                todoCHCs.erase(c);
-                for (int tmp_x : el) {
-                  outs() << tmp_x << " ";
-                }
-                outs() <<  "\n";
-                if (todoCHCs.empty()){
-                  outs () << "ALL Branches are covered: DONE\n";
-                  //exit(0);
-                }
-              }
-            }
-          }
-          else outs () << "unknown\n";
-        }
-        cur_bnd++;
-        continue;   // GF: skip for now
-        chcG->print_trees();
-
-        set<int> toErCHCs;
-        for (auto & a : todoCHCs)
-        {
-          if (find(toErCHCs.begin(), toErCHCs.end(), a) != toErCHCs.end())
-            continue;
-          //vector<vector<int>> traces;
-          //trace should be vector<chcTree *> traces
-          //vector<deep::chcTree *> traces = chcG->getNext();
-
-          //ToDo: update for Nonlinear
-//                    getAllTracesTG(mk<TRUE>(m_efac), a, cur_bnd, vector<int>(), traces);
-          outs () << "  exploring traces (" << trees.size() << ") of length "
-                  << cur_bnd << ";       # of todos = " << todoCHCs.size() << "\n";
-          /*         for (auto & b : todoCHCs)
-                   {
-                     outs () << b << ", ";
-                   }
-                   outs () << "\b\b)\n";*/
-
-          int tot = 0;
-          for (int trNum = 0; trNum < trees.size() && !todoCHCs.empty(); trNum++)
-          {
-            auto & tree = trees[trNum];
-            auto t = tree->get_set();
-            set<int> apps;
-            for (int c : t) {
-              if (find(todoCHCs.begin(), todoCHCs.end(), c) != todoCHCs.end() &&
-                  find(toErCHCs.begin(), toErCHCs.end(), c) == toErCHCs.end()) {
-                apps.insert(c);
-                outs() << "FOUND: " << c << "\n" ;
-              }
-            }
-            if (apps.empty()) continue;  // should not happen
-
-            tot++;
-
-//            auto & hr = ruleManager.chcs[t.back()];
-//            //ToDo: update for Nonlinear
-//            Expr lms;
-//            for (int i = 0; i < hr.srcRelations.size(); i++) {
-//              lms = invs[hr.srcRelations[i]];
-//            }
-////                        Expr lms = invs[hr.srcRelation];
-//            if (lms != NULL && (bool)u.isFalse(mk<AND>(lms, hr.body)))
-//            {
-//              outs () << "\n    unreachable: " << t.back() << "\n";
-//              toErCHCs.insert(t.back());
-//              unreach_chcs.insert(t.back());
-//              unsat_prefs.insert(t);
-//              continue;
-//            }
-//
-//                        int suff = 1;
-//                        bool suffFound = false;
-//                        Expr ssa = toExpr(t);
-//                        if (bool(!u.isSat(ssa)))
-//                        {
-//                            unsat_prefs.insert(t);
-//                            continue;
-//                        }
-//                        else
-//                        {
-//                            if (hr.dstRelation == ruleManager.failDecl || skipTerm)
-//                            {
-//                                for ( auto & b : apps)
-//                                    toErCHCs.insert(b);
-//
-//                                suffFound = true;
-//                                if (getTest())
-//                                {
-//                                    printTest();
-//
-//                                    // try the lookahead method: to fix or remove
-//                                    if (lookahead > 0)
-//                                    {
-//                                        Expr mdl = replaceAll(u.getModel(bindVars.back()), bindVars.back(), ruleManager.invVars[hr.dstRelation]);
-//                                        outs () << "found: " << mdl << "\n";
-//                                        letItRun(mdl, hr.dstRelation, todoCHCs, toErCHCs, lookahead, kVersVals.back());
-//                                    }
-//                                }
-//                            }
-//                            // default
-//                        }
-//
-//                        while (!suffFound && suff < (bnd - cur_bnd))
-//                        {
-////              outs () << "     finding happy ending = " << suff;
-//                            vector<vector<int>> tracesSuf;
-//                            ruleManager.getAllTraces(hr.dstRelation, ruleManager.failDecl, suff++, vector<int>(), tracesSuf);
-////              outs () << "    (" << tracesSuf.size() << ")\n";
-//                            for (auto tr : tracesSuf)
-//                            {
-//                                tr.insert(tr.begin(), t.begin(), t.end());
-//
-//                                if (bool(u.isSat(toExpr(tr))))
-//                                {
-////                  outs () << "\n    visited: ";
-//                                    for ( auto & b : apps)
-//                                    {
-//                                        toErCHCs.insert(b);
-////                    outs () << b << ", ";
-//                                    }
-////                  outs () << "\b\n      SAT trace: true ";
-////                  for (auto c : t) outs () << " -> " << *ruleManager.chcs[c].dstRelation;
-////                  outs () << "\n       Model:\n";
-//                                    suffFound = true;
-//                                    if (getTest())
-//                                        printTest();
-//                                    break;
-//                                }
-//                            }
-//                        }
-          }
-          outs () << "    -> actually explored:  " << tot << ", |unsat prefs| = " << unsat_prefs.size() << "\n";
-        }
-        for (auto a : toErCHCs) todoCHCs.erase(a);
-        for (auto t : trees){
-          t->deleteTree();
-        }
-
-      }
-      outs () << "Done with TG\n";
-    }
-
   };
 
     inline void testgen(char* smt, map<string, map<string, vector<string>>>& signature, unsigned maxAttempts, unsigned to,
@@ -1137,11 +925,6 @@ namespace ufo
       ruleManager.parse(smt, contract, true);
 
       ruleManager.print();
-      //ruleManager.print_parse_results();
-      // if (ruleManager.index_cycle_chc == -1 || ruleManager.index_fact_chc == -1){
-      //   outs() << "no function found\n";
-      //   return;
-      // }
 
       NonlinCHCsolver nonlin(ruleManager, signature);
       if (signature.size() != 1)
@@ -1149,8 +932,6 @@ namespace ufo
         outs () << "multiple contracs case\n"; //"Only a single contract is supported, currently\n";
         //exit(0);
       }
-      //nonlin.setSignature(signature);
-      // nonlin.solveIncrementally();
 
       // if (nums.size() > 0)
       {

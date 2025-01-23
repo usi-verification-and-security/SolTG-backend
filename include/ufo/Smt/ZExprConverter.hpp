@@ -8,9 +8,6 @@
 
 #include "ufo/ExprLlvm.hpp"
 
-
-// TODO: REWORK OF ADTS HANDLING
-
 namespace ufo
 {
 
@@ -37,7 +34,6 @@ namespace ufo
 
   };
 
-    static Expr left;
     ExprVector subexpr;
 
 
@@ -778,6 +774,7 @@ namespace ufo
       
       Expr e;
       ExprVector args;
+      Expr left;
       for (size_t i = 0; i < (size_t)Z3_get_app_num_args (ctx, app); i++){
         // TODO: Disequality, constructor inside constructor(maybe), IF then else
         if(dkind == Z3_OP_EQ && i == 1 && Z3_get_decl_kind (ctx, Z3_get_app_decl (ctx, Z3_to_app(ctx, z3::ast(ctx, Z3_get_app_arg(ctx, app, i))))) == Z3_OP_DT_CONSTRUCTOR){

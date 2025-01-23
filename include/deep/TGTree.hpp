@@ -130,14 +130,12 @@ namespace deep {
     chcTree(int parent, int chc_index_value, chc_structure children, std::vector<node *>& preset_children){
       vector<node *> tmp_nodes;
       for (int i = preset_children.size(); i < children.srs.size(); i++){
-//      for (auto c : children.srs){
         auto tmp = new node{children.srs[i]};
         if (!contains_entry(children.srs[i])){
           non_entry_leaves.push_back(tmp);
         }
         tmp_nodes.push_back(tmp);
       }
-//      for (auto c: children.srs) {
       for (int i = preset_children.size(); i < children.srs.size(); i++){
         node *n = new node{children.srs[i]};
         preset_children.push_back(n);
@@ -244,7 +242,7 @@ namespace deep {
 
     void printInOrder()  {
       if (empty()) {
-        outs() << "tree is emtpy\n";
+        outs() << "tree is empty\n";
         return;
       }
       printInOrder(root);
@@ -254,7 +252,7 @@ namespace deep {
 
     void printToDot(const char * filename, ufo::CHCs &ruleManager)  {
       if (empty()) {
-        outs() << "tree is emtpy\n";
+        outs() << "tree is empty\n";
         return;
       }
       node_index = 0;
@@ -400,17 +398,14 @@ namespace deep {
       if (index >= non_entry_leaves.size()){
         vector<chc_structure> tmp;
         for (int i = 0; i < out.size(); i++) {
-          //tmp.push_back(&out[i]);
           tmp.push_back(out[i]);
         }
-        //out_collection.push_back(tmp);
         out_collection.push_back(tmp);
         return;
       }
       int el = non_entry_leaves[index]->element;
       int sz = ds_map_glob.find(el)->second.size();
       vector<chc_structure>::iterator it2;
-      //for (int i = 0; i < sz; i++) {
       for (it2 = ds_map_glob.find(el)->second.begin(); it2 != ds_map_glob.find(el)->second.end(); it2++) {
         // update current out vector
         out[index] = *it2; //???
@@ -467,7 +462,6 @@ namespace deep {
     int exit_index;
     vector<chc_structure_input> chc_int;
     vector<chcTree *> trees;
-    //vector<chcTree *> fullTrees;
     map<int, vector<chc_structure>> ds_map;
     map<int, bool> ds_term; //store int value, which are terminals only (true) or cycle, branches (false)
     map<int, node> ds_term_node;
@@ -600,8 +594,6 @@ namespace deep {
 
         }
       }
-      //ds_map_glob = ds_map;
-      //init ds_term
       map<int, vector<chc_structure>>::iterator it;
       for (it = ds_map.begin(); it != ds_map.end(); it++)
       {
@@ -615,12 +607,7 @@ namespace deep {
           ds_term.insert({it->first, is_branch_or_cycle(it->first)});
         }
       }
-      //outs() << "ds_map: \n";
       map<int, bool>::iterator it2;
-      for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)
-      {
-//        outs() << it2->first << " : " << it2->second << "\n";
-      }
 
       for (it2 = ds_term.begin(); it2 != ds_term.end(); it2++)
       {
@@ -695,7 +682,6 @@ namespace deep {
           //add values from ap to tree
           nt->extend_non_entry_leaves(ap);
           if (is_future_terminals(nt->get_non_entry_leaves())){
-            //outs() << "2\n";
             nt->extend_by_terminals_nodes(ds_term_node);
             complete_trees.push_back(nt);
             continue;
@@ -703,7 +689,6 @@ namespace deep {
           if (!is_only_entries(ap)) {
             // add tree to complete_trees
             new_trees.push_back(nt);
-            //outs() << "1\n";
             continue;
           }
           //add tree to new_trees

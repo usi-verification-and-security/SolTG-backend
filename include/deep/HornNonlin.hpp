@@ -8,7 +8,6 @@ using namespace boost;
 
 namespace ufo
 {
-  // all adapted from Horn.hpp; experimental; to merge with Horn.hpp at some point
   inline bool rewriteHelperConsts_nonlinear(Expr& body, Expr v1, Expr v2)
   {
     if (isOpX<MPZ>(v1))
@@ -385,7 +384,6 @@ namespace ufo
           continue;
         }
 
-//        filter (r, bind::IsConst(), inserter (origVrs, origVrs.begin()));
         // small rewr:
         if (isOpX<ITE>(r->last()))
         {
@@ -410,8 +408,6 @@ namespace ufo
         if (isOpX<FAPP>(hr.head))
         {
           if (hr.head->left()->arity() == 2) {
-//              (find(fp.m_queries.begin(), fp.m_queries.end(), hr.head) !=
-//               fp.m_queries.end()))
             if (!addFailDecl(hr.head->left()->left())) {
               it = chcs.erase(it);
               continue;
@@ -422,9 +418,6 @@ namespace ufo
 
 
           hr.dstRelation = hr.head->left()->left();
-//
-//          for (auto it = hr.head->args_begin()+1; it != hr.head->args_end(); ++it)
-//            hr.dstVars.push_back(*it); // to be rewritten later
         }
         else
         {
@@ -433,7 +426,6 @@ namespace ufo
             it = chcs.erase(it);
             continue;
           }
-          //          addFailDecl(mk<FALSE>(m_efac));
           hr.dstRelation = mk<FALSE>(m_efac);
         }
         ++it;
@@ -455,12 +447,6 @@ namespace ufo
         splitBody(hr, origSrcSymbs, lin);
 
         hr.isFact = hr.srcRelations.empty();
-//        if (!)
-//        {
-//          outs() << "Removed: " << body << " => " << head << "\n";
-//          it = chcs.erase(it);
-//          continue;
-//        }
 
         if (hr.srcRelations.size() == 0)
         {
@@ -469,39 +455,6 @@ namespace ufo
             lin.clear();
           }
         }
-
-
-
-
-//        if (isOpX<FAPP>(head))
-//        {
-//          if (head->arg(0)->arity() == 2 && !hr.isFact)
-//          {
-//            if (!addFailDecl(head->arg(0)->arg(0)))
-//            {
-//              it = chcs.erase(it);
-//              continue;
-//            }
-//          }
-//          else
-//          {
-//            addDecl(head->arg(0));
-//          }
-//          hr.head = head->arg(0);
-//          hr.dstRelation = hr.head->arg(0);
-//        }
-//        else
-//        {
-//          if (!isOpX<FALSE>(head)) body = mk<AND>(body, mk<NEG>(head));
-//
-//          if (!addFailDecl(mk<FALSE>(m_efac)))
-//          {
-//            it = chcs.erase(it);
-//            continue;
-//          }
-//          hr.dstRelation = mk<FALSE>(m_efac);
-//        }
-
 
         hr.isQuery = (hr.dstRelation == failDecl);
         if (hr.isQuery)
@@ -520,8 +473,6 @@ namespace ufo
             origDstSymbs.push_back(*it1);
         }
         allOrigSymbs.insert(allOrigSymbs.end(), origDstSymbs.begin(), origDstSymbs.end());
-        // simplBoolReplCnj(allOrigSymbs, lin); // perhaps, not a very important optimization now; consider removing
-        //        origDstSymbs = hr.dstVars;
         if (isOpX<FAPP>(hr.head))
         {
           hr.head = head->left();
@@ -575,15 +526,8 @@ namespace ufo
         incms[chcs[i].dstRelation].push_back(i);
       }
 
-//      for (int i = 0; i < chcs.size(); i++) {
-//        outs() << "Chc " << i << " :" << chcs[i].body << " => "  << chcs[i].head << "\n";
-//      }
       prune();
 
-//      outs() << "Post pruning assignments: \n";
-//      for (int i = 0; i < chcs.size(); i++) {
-//        outs() << "Chc " << i << " :" << chcs[i].body  << "=>"  << chcs[i].head << "\n";
-//      }
       index_fact_chc = -1;
       // find: index_cycle_chc
       for (int i = 0; i < chcs.size(); i++)
@@ -665,10 +609,8 @@ namespace ufo
         findCombs(cycl_num, cur_batch);
       }
 
-      // outs () << "to copy: " << cy.srcRelations[sum] << "\n";
       chcs.push_back(chcs[index_fact_chc]);
       auto & hr = chcs.back();
-//      pprint(chcs.back().body);
       int loc = 0;
       ExprVector newbody;
       ExprVector& prevdst = chcs[index_fact_chc].dstVars;
@@ -687,7 +629,6 @@ namespace ufo
             break;
         ExprVector& cursrc = cy.srcVars[tr];
 
-        // outs () << "\n\ncopy " << i << "\n";
 
         ExprMap repl1, repl2, repl3;
         for (int k = 0; k < prevdst.size(); k++)
@@ -705,14 +646,9 @@ namespace ufo
           repl2[cy.locVars[k]] = newvar;
           loc++;
         }
-//        pprint(prevbody);
-//        pprint(cy.body);
         prevbody = replaceAll(prevbody, repl1);
-//        pprint(prevbody);
         newbody.push_back(prevbody);
-        // pprint(prevbody);
         prevbody = replaceAll(cy.body, repl2);
-//        pprint(prevbody);
         prevdst = cy.dstVars;
 
         hr.srcRelations.push_back(cy.srcRelations[sum]);
@@ -730,8 +666,6 @@ namespace ufo
       }
       newbody.push_back(prevbody);
       hr.body = conjoin(newbody, m_efac);
-//      pprint(chcs.back().body);
-//      pprint(hr.body);
       hr.isQuery = 1;
       hr.isInductive = 0;
       hr.isFact = 0;
@@ -741,9 +675,6 @@ namespace ufo
       ExprVector full_srcRelations = hr.srcRelations;
       pprint(hr.srcRelations);
       outs () << "\n";
-//      if(full_srcRelations.size() > 2) {
-//        hr.srcRelations = {full_srcRelations[full_srcRelations.size() - 1]};
-//      }
       assert (!cur_batch.empty());
       cur_batch.pop_back();
       return {cur_batch.empty(), full_srcRelations};
