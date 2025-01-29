@@ -70,12 +70,10 @@ namespace ufo
 			     reinterpret_cast<Z3_sort>
 			     (static_cast<Z3_ast> (sort)));
 	}
-      else if (isOpX<INT_TY> (e)){
+      else if (isOpX<INT_TY> (e))
 	res = reinterpret_cast<Z3_ast> (Z3_mk_int_sort (ctx));
-      }
-      else if (isOpX<REAL_TY> (e)) {
+      else if (isOpX<REAL_TY> (e))
         res = reinterpret_cast<Z3_ast> (Z3_mk_real_sort(ctx));
-      }
       else if (isOpX<BOOL_TY> (e))
 	res = reinterpret_cast<Z3_ast> (Z3_mk_bool_sort (ctx));
       else if (isOpX<AD_TY> (e)) {
@@ -267,7 +265,6 @@ namespace ufo
 
       int arity = e->arity ();
       /** other terminal expressions */
-      //TODO: WHAT IS DIFFERENT BETWEEN TWO MARSHALS???
       if (arity == 0) return M::marshal (e, ctx, cache, seen);
 
       else if (arity == 1)

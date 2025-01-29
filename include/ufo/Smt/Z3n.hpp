@@ -18,7 +18,7 @@ DM-0002198
 
 #ifndef __UFO_Z3N_HPP_
 #define __UFO_Z3N_HPP_
-/**getModelPtr
+/**
    New Z3 interface based of Z3 v4.
 
  */
