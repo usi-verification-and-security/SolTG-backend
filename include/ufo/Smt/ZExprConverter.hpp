@@ -70,33 +70,19 @@ namespace ufo
 			     reinterpret_cast<Z3_sort>
 			     (static_cast<Z3_ast> (sort)));
 	}
-      else if (isOpX<INT_TY> (e)) {
+      else if (isOpX<INT_TY> (e))
         res = reinterpret_cast<Z3_ast> (Z3_mk_int_sort(ctx));
-        printf("Post reinterpret: %s\n", Z3_ast_to_string(ctx, res));
-      }
       else if (isOpX<REAL_TY> (e))
         res = reinterpret_cast<Z3_ast> (Z3_mk_real_sort(ctx));
       else if (isOpX<BOOL_TY> (e))
-	res = reinterpret_cast<Z3_ast> (Z3_mk_bool_sort (ctx));
+	    res = reinterpret_cast<Z3_ast> (Z3_mk_bool_sort (ctx));
       else if (isOpX<AD_TY> (e)) {
-        // res = reinterpret_cast<Z3_ast> (Z3_mk_int_sort (ctx));
         std::string name = lexical_cast<std::string>(e->left());
         Z3_symbol z3_name = Z3_mk_string_symbol(ctx, name.c_str());
-        // Z3_constructor csts [constructors[name].size()];
-        // for(int i = 0; i<constructors[name].size(); i++){
-          // csts[i] = constructors[name][i];
-        // }
-        // Z3_mk_datatype(ctx, z3_name, unsigned(constructors[name].size()), csts);
         Z3_sort typeDt = Z3_mk_datatype_sort(ctx, z3_name);
-//        auto kind = Z3_get_sort_kind(ctx, typeDt);
-        auto consts = Z3_get_datatype_sort_num_constructors(ctx, typeDt);
-        auto c = Z3_get_datatype_sort_constructor(ctx, typeDt, 0);
-        unsigned num_accessors = Z3_get_domain_size(ctx, c);
-
         std::string name_DT = Z3_get_symbol_string(ctx, Z3_get_sort_name(ctx,typeDt));
         res = reinterpret_cast<Z3_ast> (typeDt);
-        printf("Post reinterpret: %s\n", Z3_ast_to_string(ctx, res));
-      }// GF: hack for now
+      }
       else if (isOpX<ARRAY_TY> (e))
       {
         z3::ast _idx_sort (marshal (e->left (), ctx, cache, seen));
@@ -765,9 +751,11 @@ namespace ufo
       Expr e;
       ExprVector args;
       Expr left;
-      for (size_t i = 0; i < (size_t)Z3_get_app_num_args (ctx, app); i++){
+      auto num = Z3_get_app_num_args (ctx, app);
+      for (size_t i = 0; i < num; i++){
         // TODO: Disequality, constructor inside constructor(maybe), IF then else
-        if(dkind == Z3_OP_EQ && i == 1 && Z3_get_decl_kind (ctx, Z3_get_app_decl (ctx, Z3_to_app(ctx, z3::ast(ctx, Z3_get_app_arg(ctx, app, i))))) == Z3_OP_DT_CONSTRUCTOR){
+        auto arg = Z3_get_app_arg (ctx, app, i);
+        if(dkind == Z3_OP_EQ && i == 1 && Z3_is_app(ctx, arg) && Z3_get_decl_kind (ctx, Z3_get_app_decl (ctx, Z3_to_app(ctx, z3::ast(ctx, arg)))) == Z3_OP_DT_CONSTRUCTOR){
           left = args[0];
         }
         args.push_back (unmarshal
