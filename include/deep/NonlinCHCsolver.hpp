@@ -66,6 +66,7 @@ namespace ufo
       vector<ExprMap> tree_map;
 
       map<string, map<string, vector<string>>> & signature; // <contract_name, <function_name_or_constructor, vector_of_param_names>>
+      unsigned fun_counter = 0;
 
   public:
 
@@ -576,30 +577,65 @@ namespace ufo
       auto itVars = chc.srcVars.begin();
       while(it != chc.srcRelations.end()){
         auto source = *it;
-        string source_name = lexical_cast<string>(source);
-        int dst = source_name.find(func_name);
+        auto source_name = lexical_cast<string>(source);
+        auto dst = source_name.find(func_name);
         if (dst != string::npos) { it++; itVars++; continue; }
         Expr incomingFormula = mk<FALSE> (m_efac);
         ExprVector dstVars;
-        bool entered = false;
         // We iterate over the set of chcs, discovering chcs which "target" predicate is the source of simplified CHC
         // All of the source "bodies" are disjoined and used to replace the source uninterpreted predicate
         for(auto& fun: function){
           if(fun.dstRelation == source){
-            entered = true;
+        ExprVector oldVars;
+        ExprVector newVars;
             inlineChc(function, fun, func_name);
             dstVars = fun.dstVars;
-            ExprVector incomingVec = {incomingFormula, fun.body};
+            // std::cout << "Src vars: \n";
+            // for (auto srcV: fun.srcVars) {
+            //   oldVars.insert(oldVars.end(), srcV.begin(), srcV.end());
+            //   for (auto srcVar : srcV) {
+            //     pprint(srcVar);
+            //   }
+            // std::cout << "*******************\n";
+            // }
+            oldVars.insert(oldVars.end(), fun.locVars.begin(), fun.locVars.end());
+            for (auto varO: oldVars) {
+              auto funName = mkTerm<string>(lexical_cast<string>(varO) + "_" + std::to_string(fun_counter), m_efac);
+              newVars.push_back(cloneVar(varO, funName));
+
+                            pprint(newVars.back());
+              // bind::type(var);
+              // newVars.push_back(mkTerm(lexical_cast<string>(var) + "_" + std::to_string(fun_counter), m_efac));
+              // newVars.push_back(mkTerm<string>(lexical_cast<string>(var) + "_" + std::to_string(fun_counter), m_efac));
+            }
+            oldVars.insert(oldVars.end(), dstVars.begin(), dstVars.end());
+            for (unsigned i = 0;i < dstVars.size(); i++) {
+              // dstVars[i] =variant::variant(fun_counter, dstVars[i]);
+              auto funName = mkTerm<string>(lexical_cast<string>(dstVars[i]) + "_" + std::to_string(fun_counter), m_efac);
+              dstVars[i] = cloneVar(dstVars[i], funName);
+              // dstVars[i] = mkTerm<string>(lexical_cast<string>(dstVars[i]) + "_" + std::to_string(fun_counter), m_efac);
+              newVars.push_back(dstVars[i]);
+            }
+            Expr newBody = fun.body;
+            newBody = replaceAll(newBody, oldVars, newVars);
+            // Expr newBody = map(oldBody, oldVars, newVars);
+            ExprVector incomingVec = {incomingFormula, newBody};
             incomingFormula = disjoin(incomingVec, m_efac);
-            incomingFormula = eliminateQuantifiersExceptForVars(incomingFormula, dstVars);
+            // incomingFormula = eliminateQuantifiersExceptForVars(incomingFormula, dstVars);
+            fun_counter++;
           }
         }
         // CHC body of simplified formula is conjoined with extracted logical formula from the "source" predicates
         ExprVector predicate_expl = {chc.body, incomingFormula};
         assert(dstVars.size() > 0);
+        std::cout << "Old chc body: \n";
+        pprint(chc.body);
         chc.body = conjoin(predicate_expl, m_efac);
         chc.body = replaceAll(chc.body, *itVars, dstVars);
-        chc.body = eliminateQuantifiers(chc.body, dstVars);
+        std::cout << "New chc body: \n";
+        pprint(chc.body);
+        // chc.locVars = chc.locVars.insert(chc.locVars.end(), );
+        // chc.body = eliminateQuantifiers(chc.body, dstVars);
         chc.srcRelations.erase(it);
         chc.srcVars.erase(itVars);
       }
