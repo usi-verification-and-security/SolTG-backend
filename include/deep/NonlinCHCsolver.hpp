@@ -586,56 +586,32 @@ namespace ufo
         // All of the source "bodies" are disjoined and used to replace the source uninterpreted predicate
         for(auto& fun: function){
           if(fun.dstRelation == source){
-        ExprVector oldVars;
-        ExprVector newVars;
+            ExprVector oldVars;
+            ExprVector newVars;
             inlineChc(function, fun, func_name);
             dstVars = fun.dstVars;
-            // std::cout << "Src vars: \n";
-            // for (auto srcV: fun.srcVars) {
-            //   oldVars.insert(oldVars.end(), srcV.begin(), srcV.end());
-            //   for (auto srcVar : srcV) {
-            //     pprint(srcVar);
-            //   }
-            // std::cout << "*******************\n";
-            // }
             oldVars.insert(oldVars.end(), fun.locVars.begin(), fun.locVars.end());
-            for (auto varO: oldVars) {
+            for (const auto& varO: oldVars) {
               auto funName = mkTerm<string>(lexical_cast<string>(varO) + "_" + std::to_string(fun_counter), m_efac);
               newVars.push_back(cloneVar(varO, funName));
-
-                            pprint(newVars.back());
-              // bind::type(var);
-              // newVars.push_back(mkTerm(lexical_cast<string>(var) + "_" + std::to_string(fun_counter), m_efac));
-              // newVars.push_back(mkTerm<string>(lexical_cast<string>(var) + "_" + std::to_string(fun_counter), m_efac));
             }
             oldVars.insert(oldVars.end(), dstVars.begin(), dstVars.end());
             for (unsigned i = 0;i < dstVars.size(); i++) {
-              // dstVars[i] =variant::variant(fun_counter, dstVars[i]);
               auto funName = mkTerm<string>(lexical_cast<string>(dstVars[i]) + "_" + std::to_string(fun_counter), m_efac);
               dstVars[i] = cloneVar(dstVars[i], funName);
-              // dstVars[i] = mkTerm<string>(lexical_cast<string>(dstVars[i]) + "_" + std::to_string(fun_counter), m_efac);
               newVars.push_back(dstVars[i]);
             }
-            Expr newBody = fun.body;
-            newBody = replaceAll(newBody, oldVars, newVars);
-            // Expr newBody = map(oldBody, oldVars, newVars);
-            ExprVector incomingVec = {incomingFormula, newBody};
+            Expr newBody = replaceAll(fun.body, oldVars, newVars);
+            ExprVector incomingVec{incomingFormula, newBody};
             incomingFormula = disjoin(incomingVec, m_efac);
-            // incomingFormula = eliminateQuantifiersExceptForVars(incomingFormula, dstVars);
             fun_counter++;
           }
         }
         // CHC body of simplified formula is conjoined with extracted logical formula from the "source" predicates
         ExprVector predicate_expl = {chc.body, incomingFormula};
         assert(dstVars.size() > 0);
-        std::cout << "Old chc body: \n";
-        pprint(chc.body);
         chc.body = conjoin(predicate_expl, m_efac);
         chc.body = replaceAll(chc.body, *itVars, dstVars);
-        std::cout << "New chc body: \n";
-        pprint(chc.body);
-        // chc.locVars = chc.locVars.insert(chc.locVars.end(), );
-        // chc.body = eliminateQuantifiers(chc.body, dstVars);
         chc.srcRelations.erase(it);
         chc.srcVars.erase(itVars);
       }
