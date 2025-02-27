@@ -609,7 +609,7 @@ namespace ufo
         }
         // CHC body of simplified formula is conjoined with extracted logical formula from the "source" predicates
         ExprVector predicate_expl = {chc.body, incomingFormula};
-        assert(dstVars.size() > 0);
+        assert(!dstVars.empty());
         chc.body = conjoin(predicate_expl, m_efac);
         chc.body = replaceAll(chc.body, *itVars, dstVars);
         chc.srcRelations.erase(it);
@@ -798,7 +798,6 @@ namespace ufo
               outs () << "unrolling unsat\n";
             }
             else if (true == res) {
-              u.dumpToFile(ssa);
               if (satTrees[id].size() > 0) {
                 satTrees[id].push_back(deep::chcTree::clone(t));
               } else {

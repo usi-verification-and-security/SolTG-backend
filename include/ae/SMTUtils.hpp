@@ -193,7 +193,6 @@ namespace ufo
           ExprMap extraVars;
           lastCand = findBVAndRewrite(lastCand,invAndIterVars,extraVars);
           invAndIterVars.push_back(lastCand);
-          dumpToFile(invAndIterVars);
         }
         smt.assertExpr(lastCand);
       }
